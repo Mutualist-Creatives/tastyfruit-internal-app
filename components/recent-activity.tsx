@@ -1,34 +1,36 @@
-import { PlusCircle, FilePenLine } from "lucide-react";
+import { PlusCircle, FilePenLine, CookingPot } from "lucide-react";
 
-// Data dummy untuk aktivitas
-const activities = [
-  {
-    action: "Produk baru ditambahkan",
-    item: "Jus Jambu Merah",
-    time: "15 menit lalu",
-    icon: PlusCircle,
-  },
-  {
-    action: "Artikel baru dipublikasi",
-    item: "5 Manfaat Buah Naga",
-    time: "1 jam lalu",
-    icon: FilePenLine,
-  },
-  {
-    action: "Produk baru ditambahkan",
-    item: "Salad Buah Komplit",
-    time: "3 jam lalu",
-    icon: PlusCircle,
-  },
-  {
-    action: "Produk baru ditambahkan",
-    item: "Pisang Cavendish",
-    time: "8 jam lalu",
-    icon: PlusCircle,
-  },
-];
+interface RecentActivityProps {
+  recentActivity?: {
+    newProducts: number;
+    newRecipes: number;
+    newPublications: number;
+  };
+}
 
-export default function RecentActivity() {
+export default function RecentActivity({
+  recentActivity,
+}: RecentActivityProps) {
+  const activities = [
+    {
+      action: "Produk baru (7 hari terakhir)",
+      item: `${recentActivity?.newProducts || 0} produk`,
+      time: "Minggu ini",
+      icon: PlusCircle,
+    },
+    {
+      action: "Resep baru (7 hari terakhir)",
+      item: `${recentActivity?.newRecipes || 0} resep`,
+      time: "Minggu ini",
+      icon: CookingPot,
+    },
+    {
+      action: "Publikasi baru (7 hari terakhir)",
+      item: `${recentActivity?.newPublications || 0} artikel`,
+      time: "Minggu ini",
+      icon: FilePenLine,
+    },
+  ];
   return (
     <div className="rounded-lg border bg-white p-6 shadow-sm">
       <h3 className="font-heading text-lg font-semibold mb-4">

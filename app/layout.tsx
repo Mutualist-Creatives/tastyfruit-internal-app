@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Nunito, Bricolage_Grotesque } from "next/font/google";
 import localFont from "next/font/local";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -70,7 +72,8 @@ export default function RootLayout({
         className={`${nunito.variable} ${bricolageGrotesque.variable} ${bricolageGrotesqueCondensed.variable} antialiased flex flex-col min-h-screen`}
         suppressHydrationWarning={true}
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
