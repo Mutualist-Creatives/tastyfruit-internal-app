@@ -36,11 +36,7 @@ export async function PUT(
     const body = await request.json();
 
     // Validate input data
-    const validatedData = updateProductSchema.parse({
-      ...body,
-      price: body.price ? parseFloat(body.price) : undefined,
-      stock: body.stock ? parseInt(body.stock) : undefined,
-    });
+    const validatedData = updateProductSchema.parse(body);
 
     const product = await prisma.product.update({
       where: { id: params.id },

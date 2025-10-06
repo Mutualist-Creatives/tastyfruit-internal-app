@@ -14,6 +14,7 @@ export default function LoginPage() {
               width={72}
               height={72}
               className="mx-auto"
+              priority
             />
             <h1 className="font-heading mt-4 text-2xl font-bold text-slate-800">
               Welcome, Admin!

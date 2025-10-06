@@ -16,11 +16,12 @@ model Product {
   slug            String   @unique
   name            String
   description     String?
-  price           Float
+  price           Float?   // Deprecated - kept for backward compatibility
   category        String
   imageUrl        String?
-  stock           Int      @default(0)
+  stock           Int?     // Deprecated - kept for backward compatibility
   isActive        Boolean  @default(true)
+  order           Int      @default(0)
   
   // Product specific fields
   layoutType      String?  // "layout-a" or "layout-b"
@@ -51,6 +52,7 @@ model FruitType {
   slug        String
   image       String
   description String
+  order       Int      @default(0)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

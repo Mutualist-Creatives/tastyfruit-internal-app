@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
   updateUserSchema,
   type UpdateUserFormData,
 } from "@/lib/validations/user";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -19,6 +29,7 @@ export default function EditUserPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     reset,
   } = useForm<UpdateUserFormData>({
@@ -95,13 +106,13 @@ export default function EditUserPage() {
         className="bg-white rounded-lg shadow p-6 space-y-6"
       >
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Label htmlFor="name" className="mb-2">
             Nama Lengkap
-          </label>
-          <input
+          </Label>
+          <Input
+            id="name"
             type="text"
             {...register("name")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             placeholder="John Doe"
           />
           {errors.name && (
@@ -110,13 +121,13 @@ export default function EditUserPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Label htmlFor="email" className="mb-2">
             Email
-          </label>
-          <input
+          </Label>
+          <Input
+            id="email"
             type="email"
             {...register("email")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             placeholder="john@tastyfruit.com"
           />
           {errors.email && (
@@ -125,13 +136,13 @@ export default function EditUserPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Label htmlFor="password" className="mb-2">
             Password Baru (opsional)
-          </label>
-          <input
+          </Label>
+          <Input
+            id="password"
             type="password"
             {...register("password")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             placeholder="Kosongkan jika tidak ingin mengubah"
           />
           {errors.password && (
@@ -145,17 +156,27 @@ export default function EditUserPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Label htmlFor="role" className="mb-2">
             Role
-          </label>
-          <select
-            {...register("role")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-          >
-            <option value="admin">Admin - Full access</option>
-            <option value="editor">Editor - Can create & edit</option>
-            <option value="viewer">Viewer - Read only</option>
-          </select>
+          </Label>
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin - Full access</SelectItem>
+                  <SelectItem value="editor">
+                    Editor - Can create & edit
+                  </SelectItem>
+                  <SelectItem value="viewer">Viewer - Read only</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
           {errors.role && (
             <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
           )}
@@ -169,20 +190,12 @@ export default function EditUserPage() {
         </div>
 
         <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button type="submit" disabled={loading} className="flex-1">
             {loading ? "Menyimpan..." : "Update User"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
             Batal
-          </button>
+          </Button>
         </div>
       </form>
     </div>

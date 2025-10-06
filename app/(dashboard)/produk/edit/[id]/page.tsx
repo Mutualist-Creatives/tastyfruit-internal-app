@@ -10,6 +10,16 @@ import { createProductSchema } from "@/lib/validations/product";
 import FileUpload from "@/components/ui/file-upload";
 import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function EditProdukPage() {
   const router = useRouter();
@@ -32,6 +42,13 @@ export default function EditProdukPage() {
     reset,
   } = useForm({
     resolver: zodResolver(createProductSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      category: "",
+      imageUrl: "",
+      isActive: true,
+    },
   });
 
   useEffect(() => {
@@ -46,10 +63,9 @@ export default function EditProdukPage() {
         reset({
           name: product.name,
           description: product.description || "",
-          price: product.price,
           category: product.category,
           imageUrl: product.imageUrl || "",
-          stock: product.stock,
+          isActive: product.isActive ?? true,
         });
         setCurrentImageUrl(product.imageUrl || "");
       } else {
@@ -129,21 +145,21 @@ export default function EditProdukPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
         <Link
           href="/produk"
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-800 min-h-[44px]"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Link>
-        <h1 className="font-heading text-3xl font-bold text-slate-800">
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold text-slate-800">
           Edit Produk
         </h1>
       </div>
 
       {/* Form */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
         {apiError && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {apiError}
@@ -154,19 +170,13 @@ export default function EditProdukPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Nama Produk */}
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="name" className="mb-2">
                 Nama Produk *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
                 id="name"
                 {...register("name")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.name ? "border-red-300" : "border-slate-300"
-                }`}
+                className={errors.name ? "border-red-300" : ""}
                 placeholder="Masukkan nama produk"
               />
               {errors.name && (
@@ -178,80 +188,37 @@ export default function EditProdukPage() {
 
             {/* Kategori */}
             <div>
-              <label
-                htmlFor="category"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="category" className="mb-2">
                 Kategori *
-              </label>
-              <select
-                id="category"
-                {...register("category")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.category ? "border-red-300" : "border-slate-300"
-                }`}
-              >
-                <option value="">Pilih kategori</option>
-                <option value="Buah Segar">Buah Segar</option>
-                <option value="Buah Kering">Buah Kering</option>
-                <option value="Jus Buah">Jus Buah</option>
-                <option value="Salad Buah">Salad Buah</option>
-                <option value="Smoothie">Smoothie</option>
-              </select>
+              </Label>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      className={errors.category ? "border-red-300" : ""}
+                    >
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Apel">Apel</SelectItem>
+                      <SelectItem value="Jeruk">Jeruk</SelectItem>
+                      <SelectItem value="Mangga">Mangga</SelectItem>
+                      <SelectItem value="Pisang">Pisang</SelectItem>
+                      <SelectItem value="Anggur">Anggur</SelectItem>
+                      <SelectItem value="Strawberry">Strawberry</SelectItem>
+                      <SelectItem value="Melon">Melon</SelectItem>
+                      <SelectItem value="Semangka">Semangka</SelectItem>
+                      <SelectItem value="Pepaya">Pepaya</SelectItem>
+                      <SelectItem value="Nanas">Nanas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category && (
                 <p className="mt-1 text-sm text-red-600">
                   {errors.category.message}
-                </p>
-              )}
-            </div>
-
-            {/* Harga */}
-            <div>
-              <label
-                htmlFor="price"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Harga (Rp) *
-              </label>
-              <input
-                type="number"
-                id="price"
-                min="0"
-                step="0.01"
-                {...register("price", { valueAsNumber: true })}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.price ? "border-red-300" : "border-slate-300"
-                }`}
-                placeholder="0"
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.price.message}
-                </p>
-              )}
-            </div>
-
-            {/* Stok */}
-            <div>
-              <label
-                htmlFor="stock"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Stok
-              </label>
-              <input
-                type="number"
-                id="stock"
-                min="0"
-                {...register("stock", { valueAsNumber: true })}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.stock ? "border-red-300" : "border-slate-300"
-                }`}
-                placeholder="0"
-              />
-              {errors.stock && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.stock.message}
                 </p>
               )}
             </div>
@@ -259,9 +226,9 @@ export default function EditProdukPage() {
 
           {/* Upload Gambar */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Produk
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -271,19 +238,14 @@ export default function EditProdukPage() {
 
             {/* Alternative URL Input */}
             <div className="mt-4">
-              <label
-                htmlFor="imageUrl"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="imageUrl" className="mb-2">
                 Atau masukkan URL Gambar
-              </label>
-              <input
+              </Label>
+              <Input
                 type="url"
                 id="imageUrl"
                 {...register("imageUrl")}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.imageUrl ? "border-red-300" : "border-slate-300"
-                }`}
+                className={errors.imageUrl ? "border-red-300" : ""}
                 placeholder="https://example.com/image.jpg"
                 disabled={!!uploadedFile}
               />
@@ -297,9 +259,9 @@ export default function EditProdukPage() {
 
           {/* Deskripsi */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="description" className="mb-2">
               Deskripsi
-            </label>
+            </Label>
             <Controller
               name="description"
               control={control}
@@ -319,24 +281,25 @@ export default function EditProdukPage() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <Link
-              href="/produk"
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
+          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+            <Button
+              variant="ghost"
+              asChild
+              className="min-h-[44px] w-full sm:w-auto"
             >
-              Batal
-            </Link>
-            <button
+              <Link href="/produk">Batal</Link>
+            </Button>
+            <Button
               type="submit"
               disabled={loading || uploadLoading}
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] w-full sm:w-auto"
             >
               {uploadLoading
                 ? "Mengupload..."
                 : loading
                 ? "Menyimpan..."
                 : "Update Produk"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

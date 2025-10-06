@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,143 +9,178 @@ import {
   CookingPot,
   Users,
   LogOut,
-  ChevronDown,
+  Apple,
   ChevronRight,
 } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-export default function Sidebar() {
+const menuItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+  },
+  {
+    title: "Produk",
+    url: "/produk",
+    icon: Package,
+  },
+  {
+    title: "Artikel",
+    icon: FileText,
+    items: [
+      {
+        title: "Publikasi",
+        url: "/publikasi",
+        icon: FileText,
+      },
+      {
+        title: "Resep",
+        url: "/resep",
+        icon: CookingPot,
+      },
+    ],
+  },
+  {
+    title: "Users",
+    url: "/users",
+    icon: Users,
+  },
+];
+
+export default function AppSidebar() {
   const pathname = usePathname();
-  const [artikelOpen, setArtikelOpen] = useState(
-    pathname.startsWith("/publikasi") || pathname.startsWith("/resep")
-  );
-
-  const isArtikelActive =
-    pathname.startsWith("/publikasi") || pathname.startsWith("/resep");
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 flex-col border-r bg-slate-50">
-      <div className="flex h-full flex-col p-4">
-        {/* Bagian Logo */}
-        <div className="mb-8 p-4">
-          <h1 className="text-2xl font-bold text-slate-800">TastyFruit</h1>
-          <p className="text-sm text-slate-500">Admin Panel</p>
-        </div>
-
-        {/* Bagian Navigasi Utama */}
-        <nav className="flex-grow">
-          <ul className="space-y-1">
-            {/* Dashboard */}
-            <li>
-              <Link
-                href="/dashboard"
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  pathname.startsWith("/dashboard")
-                    ? "bg-blue-100 font-bold text-primary"
-                    : ""
-                }`}
-              >
-                <Home className="h-5 w-5" />
-                Dashboard
-              </Link>
-            </li>
-
-            {/* Produk */}
-            <li>
-              <Link
-                href="/produk"
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  pathname.startsWith("/produk")
-                    ? "bg-blue-100 font-bold text-primary"
-                    : ""
-                }`}
-              >
-                <Package className="h-5 w-5" />
-                Produk
-              </Link>
-            </li>
-
-            {/* Artikel (Accordion) */}
-            <li>
-              <button
-                onClick={() => setArtikelOpen(!artikelOpen)}
-                className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  isArtikelActive ? "bg-blue-100 font-bold text-primary" : ""
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5" />
-                  Artikel
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/dashboard">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#003CE9] text-[#B5FE28]">
+                  <Apple className="h-5 w-5" />
                 </div>
-                {artikelOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-
-              {/* Submenu */}
-              {artikelOpen && (
-                <ul className="ml-4 mt-1 space-y-1 border-l-2 border-slate-200 pl-4">
-                  <li>
-                    <Link
-                      href="/publikasi"
-                      className={`flex items-center gap-3 rounded-lg px-4 py-2 text-sm text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                        pathname.startsWith("/publikasi")
-                          ? "bg-blue-50 font-semibold text-primary"
-                          : ""
-                      }`}
-                    >
-                      <FileText className="h-4 w-4" />
-                      Publikasi
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/resep"
-                      className={`flex items-center gap-3 rounded-lg px-4 py-2 text-sm text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                        pathname.startsWith("/resep")
-                          ? "bg-blue-50 font-semibold text-primary"
-                          : ""
-                      }`}
-                    >
-                      <CookingPot className="h-4 w-4" />
-                      Resep
-                    </Link>
-                  </li>
-                </ul>
-              )}
-            </li>
-
-            {/* Users */}
-            <li>
-              <Link
-                href="/users"
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  pathname.startsWith("/users")
-                    ? "bg-blue-100 font-bold text-primary"
-                    : ""
-                }`}
-              >
-                <Users className="h-5 w-5" />
-                Users
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold text-[#003CE9]">
+                    TastyFruit
+                  </span>
+                  <span className="truncate text-xs">Admin Panel</span>
+                </div>
               </Link>
-            </li>
-          </ul>
-        </nav>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-        {/* Bagian Logout */}
-        <div>
-          <form action="/auth/logout" method="post">
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900"
-            >
-              <LogOut className="h-5 w-5" />
-              Logout
-            </button>
-          </form>
-        </div>
-      </div>
-    </aside>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => {
+                const isActive = item.url
+                  ? pathname.startsWith(item.url)
+                  : item.items?.some((subItem) =>
+                      pathname.startsWith(subItem.url)
+                    );
+
+                if (item.items) {
+                  return (
+                    <Collapsible
+                      key={item.title}
+                      asChild
+                      defaultOpen={isActive}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            tooltip={item.title}
+                            isActive={isActive}
+                          >
+                            {item.icon && <item.icon />}
+                            <span>{item.title}</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={pathname.startsWith(subItem.url)}
+                                >
+                                  <Link href={subItem.url}>
+                                    {subItem.icon && <subItem.icon />}
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.title}
+                      isActive={isActive}
+                    >
+                      <Link href={item.url!}>
+                        {item.icon && <item.icon />}
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <form action="/auth/logout" method="post" className="w-full">
+              <SidebarMenuButton
+                type="submit"
+                tooltip="Logout"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut />
+                <span>Logout</span>
+              </SidebarMenuButton>
+            </form>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

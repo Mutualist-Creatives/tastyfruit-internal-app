@@ -2,11 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, X, Eye } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
 import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { useCrudApi } from "@/hooks/use-api";
+import PreviewModal from "@/components/ui/preview-modal";
+import RecipePreview from "@/components/preview/recipe-preview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Ingredient {
   name: string;
@@ -21,10 +35,11 @@ interface InstructionStep {
 
 export default function TambahResepPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const { create } = useCrudApi();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -102,7 +117,6 @@ export default function TambahResepPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setApiError("");
 
     try {
@@ -131,30 +145,41 @@ export default function TambahResepPage() {
         (inst) => inst.title && inst.description
       );
 
-      const response = await fetch("/api/recipes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          imageUrl,
-          ingredients: validIngredients,
-          instructions: validInstructions,
-        }),
-      });
-
-      if (response.ok) {
-        router.push("/resep");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal menambah resep");
-      }
-    } catch (error) {
+      await create.execute(
+        () =>
+          fetch("/api/recipes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...formData,
+              imageUrl,
+              ingredients: validIngredients,
+              instructions: validInstructions,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.error || "Gagal menambah resep");
+            }
+            return res.json();
+          }),
+        {
+          successMessage: `Resep "${formData.title}" berhasil ditambahkan`,
+          onSuccess: () => {
+            setTimeout(() => {
+              router.push("/resep");
+            }, 1500);
+          },
+          onError: (error) => {
+            setApiError(error.message || "Terjadi kesalahan");
+          },
+        }
+      );
+    } catch (error: any) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      setApiError(error.message || "Terjadi kesalahan");
     }
   };
 
@@ -186,85 +211,86 @@ export default function TambahResepPage() {
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="title" className="mb-2">
                 Judul Resep *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 value={formData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Masukkan judul resep"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="servings" className="mb-2">
                 Porsi
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="servings"
                 name="servings"
                 value={formData.servings}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 4-6 orang"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="cookingTime" className="mb-2">
                 Waktu Memasak
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="cookingTime"
                 name="cookingTime"
                 value={formData.cookingTime}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 30 menit"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="author" className="mb-2">
                 Author *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="author"
                 name="author"
                 required
                 value={formData.author}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Nama author"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="difficulty" className="mb-2">
                 Tingkat Kesulitan
-              </label>
-              <select
-                name="difficulty"
+              </Label>
+              <Select
                 value={formData.difficulty}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, difficulty: value }))
+                }
               >
-                <option value="Easy">Easy</option>
-                <option value="Medium">Medium</option>
-                <option value="Hard">Hard</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih tingkat kesulitan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Easy">Easy</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="description" className="mb-2">
               Deskripsi
-            </label>
+            </Label>
             <TiptapEditor
               content={formData.description}
               onChange={(html) =>
@@ -276,9 +302,9 @@ export default function TambahResepPage() {
 
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Resep
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -288,56 +314,54 @@ export default function TambahResepPage() {
           {/* Ingredients */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-slate-700">
-                Bahan-bahan *
-              </label>
-              <button
+              <Label className="mb-2">Bahan-bahan *</Label>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={addIngredient}
-                className="flex items-center gap-1 text-sm text-primary hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 Tambah Bahan
-              </button>
+              </Button>
             </div>
             <div className="space-y-3">
               {ingredients.map((ingredient, index) => (
                 <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Nama bahan"
                     value={ingredient.name}
                     onChange={(e) =>
                       updateIngredient(index, "name", e.target.value)
                     }
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex-1"
                   />
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Jumlah"
                     value={ingredient.amount}
                     onChange={(e) =>
                       updateIngredient(index, "amount", e.target.value)
                     }
-                    className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-32"
                   />
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Catatan (optional)"
                     value={ingredient.note}
                     onChange={(e) =>
                       updateIngredient(index, "note", e.target.value)
                     }
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex-1"
                   />
                   {ingredients.length > 1 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => removeIngredient(index)}
                       className="text-red-600 hover:text-red-800"
                     >
                       <X className="h-5 w-5" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
@@ -347,17 +371,16 @@ export default function TambahResepPage() {
           {/* Instructions */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-slate-700">
-                Langkah-langkah *
-              </label>
-              <button
+              <Label className="mb-2">Langkah-langkah *</Label>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={addInstruction}
-                className="flex items-center gap-1 text-sm text-primary hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 Tambah Langkah
-              </button>
+              </Button>
             </div>
             <div className="space-y-4">
               {instructions.map((instruction, index) => (
@@ -370,32 +393,32 @@ export default function TambahResepPage() {
                       Langkah {index + 1}
                     </span>
                     {instructions.length > 1 && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => removeInstruction(index)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     )}
                   </div>
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Judul langkah"
                     value={instruction.title}
                     onChange={(e) =>
                       updateInstruction(index, "title", e.target.value)
                     }
-                    className="w-full px-3 py-2 mb-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="mb-2"
                   />
-                  <textarea
+                  <Textarea
                     placeholder="Deskripsi langkah"
                     rows={2}
                     value={instruction.description}
                     onChange={(e) =>
                       updateInstruction(index, "description", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               ))}
@@ -404,26 +427,48 @@ export default function TambahResepPage() {
 
           {/* Submit Button */}
           <div className="flex justify-end gap-4">
-            <Link
-              href="/resep"
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
+            <Button variant="ghost" asChild>
+              <Link href="/resep">Batal</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPreview(true)}
             >
-              Batal
-            </Link>
-            <button
-              type="submit"
-              disabled={loading || uploadLoading}
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </Button>
+            <Button type="submit" disabled={create.loading || uploadLoading}>
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : create.loading
                 ? "Menyimpan..."
                 : "Simpan Resep"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
+
+      {/* Preview Modal */}
+      <PreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        title={formData.title || "Resep Baru"}
+      >
+        <RecipePreview
+          recipe={{
+            ...formData,
+            imageUrl: uploadedFile
+              ? URL.createObjectURL(uploadedFile)
+              : formData.imageUrl,
+            ingredients: ingredients.filter((ing) => ing.name && ing.amount),
+            instructions: instructions.filter(
+              (inst) => inst.title && inst.description
+            ),
+            isPublished: false,
+          }}
+        />
+      </PreviewModal>
     </div>
   );
 }

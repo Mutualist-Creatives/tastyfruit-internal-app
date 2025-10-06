@@ -75,11 +75,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate input data
-    const validatedData = createProductSchema.parse({
-      ...body,
-      price: parseFloat(body.price),
-      stock: parseInt(body.stock) || 0,
-    });
+    const validatedData = createProductSchema.parse(body);
 
     const product = await prisma.product.create({
       data: validatedData,

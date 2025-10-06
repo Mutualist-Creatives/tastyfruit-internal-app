@@ -2,18 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
 import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { useCrudApi } from "@/hooks/use-api";
+import PreviewModal from "@/components/ui/preview-modal";
+import PublicationPreview from "@/components/preview/publication-preview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TambahPublikasiPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const { create } = useCrudApi();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -52,7 +67,6 @@ export default function TambahPublikasiPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setApiError("");
 
     try {
@@ -73,28 +87,39 @@ export default function TambahPublikasiPage() {
         }
       }
 
-      const response = await fetch("/api/publications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          imageUrl,
-        }),
-      });
-
-      if (response.ok) {
-        router.push("/publikasi");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal menambah publikasi");
-      }
-    } catch (error) {
+      await create.execute(
+        () =>
+          fetch("/api/publications", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...formData,
+              imageUrl,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.error || "Gagal menambah publikasi");
+            }
+            return res.json();
+          }),
+        {
+          successMessage: `Publikasi "${formData.title}" berhasil ditambahkan`,
+          onSuccess: () => {
+            setTimeout(() => {
+              router.push("/publikasi");
+            }, 1500);
+          },
+          onError: (error) => {
+            setApiError(error.message || "Terjadi kesalahan");
+          },
+        }
+      );
+    } catch (error: any) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      setApiError(error.message || "Terjadi kesalahan");
     }
   };
 
@@ -126,66 +151,67 @@ export default function TambahPublikasiPage() {
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="title" className="mb-2">
                 Judul Publikasi *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 value={formData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Masukkan judul publikasi"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="author" className="mb-2">
                 Author *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="author"
                 name="author"
                 required
                 value={formData.author}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Nama author"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="category" className="mb-2">
                 Kategori *
-              </label>
-              <select
-                name="category"
-                required
+              </Label>
+              <Select
                 value={formData.category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, category: value }))
+                }
               >
-                <option value="">Pilih kategori</option>
-                <option value="Event">Event</option>
-                <option value="Aktivitas">Aktivitas</option>
-                <option value="Produk">Produk</option>
-                <option value="Informasi">Informasi</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Event">Event</SelectItem>
+                  <SelectItem value="Aktivitas">Aktivitas</SelectItem>
+                  <SelectItem value="Produk">Produk</SelectItem>
+                  <SelectItem value="Informasi">Informasi</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Excerpt */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="excerpt" className="mb-2">
               Excerpt (Ringkasan)
-            </label>
-            <textarea
+            </Label>
+            <Textarea
+              id="excerpt"
               name="excerpt"
               rows={2}
               value={formData.excerpt}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Ringkasan singkat publikasi (max 500 karakter)"
               maxLength={500}
             />
@@ -196,9 +222,9 @@ export default function TambahPublikasiPage() {
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="content" className="mb-2">
               Konten *
-            </label>
+            </Label>
             <TiptapEditor
               content={formData.content}
               onChange={(html) => setFormData({ ...formData, content: html })}
@@ -211,9 +237,9 @@ export default function TambahPublikasiPage() {
 
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Cover
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -237,26 +263,44 @@ export default function TambahPublikasiPage() {
 
           {/* Submit Button */}
           <div className="flex justify-end gap-4">
-            <Link
-              href="/publikasi"
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
+            <Button variant="ghost" asChild>
+              <Link href="/publikasi">Batal</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPreview(true)}
             >
-              Batal
-            </Link>
-            <button
-              type="submit"
-              disabled={loading || uploadLoading}
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </Button>
+            <Button type="submit" disabled={create.loading || uploadLoading}>
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : create.loading
                 ? "Menyimpan..."
                 : "Simpan Publikasi"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
+
+      {/* Preview Modal */}
+      <PreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        title={formData.title || "Publikasi Baru"}
+      >
+        <PublicationPreview
+          publication={{
+            ...formData,
+            imageUrl: uploadedFile
+              ? URL.createObjectURL(uploadedFile)
+              : formData.imageUrl,
+            createdAt: new Date().toISOString(),
+          }}
+        />
+      </PreviewModal>
     </div>
   );
 }

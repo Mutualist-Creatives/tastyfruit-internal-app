@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import Link from "next/link";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,31 +10,50 @@ import { useState } from "react";
 import FileUpload from "@/components/ui/file-upload";
 import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { useCrudApi } from "@/hooks/use-api";
+import { showToast } from "@/lib/toast";
+import PreviewModal from "@/components/ui/preview-modal";
+import ProductPreview from "@/components/preview/product-preview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TambahProdukPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const { create } = useCrudApi();
 
   const {
     register,
     handleSubmit,
     setValue,
     control,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createProductSchema),
     defaultValues: {
       name: "",
       description: "",
-      price: 0,
       category: "",
       imageUrl: "",
-      stock: 0,
+      isActive: true,
     },
   });
+
+  // Watch form data for preview
+  const formData = watch();
 
   const handleFileSelect = (file: File) => {
     setUploadedFile(file);
@@ -46,7 +65,6 @@ export default function TambahProdukPage() {
   };
 
   const onSubmit = async (data: any) => {
-    setLoading(true);
     setApiError("");
 
     try {
@@ -71,56 +89,67 @@ export default function TambahProdukPage() {
                 (uploadError.message || "Unknown error")
             );
           }
-          setLoading(false);
           return;
         } finally {
           setUploadLoading(false);
         }
       }
 
-      const response = await fetch("/api/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          imageUrl,
-        }),
-      });
-
-      if (response.ok) {
-        router.push("/produk");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal menambah produk");
-      }
-    } catch (error) {
+      await create.execute(
+        () =>
+          fetch("/api/products", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...data,
+              imageUrl,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.error || "Gagal menambah produk");
+            }
+            return res.json();
+          }),
+        {
+          successMessage: `Produk "${data.name}" berhasil ditambahkan`,
+          onSuccess: () => {
+            // Delay navigation to allow toast to show
+            setTimeout(() => {
+              router.push("/produk");
+            }, 1500);
+          },
+          onError: (error) => {
+            setApiError(error.message || "Terjadi kesalahan");
+          },
+        }
+      );
+    } catch (error: any) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      setApiError(error.message || "Terjadi kesalahan");
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
         <Link
           href="/produk"
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-800 min-h-[44px]"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Link>
-        <h1 className="font-heading text-3xl font-bold text-slate-800">
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold text-slate-800">
           Tambah Produk Baru
         </h1>
       </div>
 
       {/* Form */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
         {apiError && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {apiError}
@@ -131,19 +160,13 @@ export default function TambahProdukPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Nama Produk */}
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="name" className="mb-2">
                 Nama Produk *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
                 id="name"
                 {...register("name")}
-                className={`w-full px-3 py-2 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.name ? "border-red-300" : "border-slate-300"
-                }`}
+                className={errors.name ? "border-red-300" : ""}
                 placeholder="Masukkan nama produk"
               />
               {errors.name && (
@@ -155,80 +178,37 @@ export default function TambahProdukPage() {
 
             {/* Kategori */}
             <div>
-              <label
-                htmlFor="category"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="category" className="mb-2">
                 Kategori *
-              </label>
-              <select
-                id="category"
-                {...register("category")}
-                className={`w-full px-3 py-2 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.category ? "border-red-300" : "border-slate-300"
-                }`}
-              >
-                <option value="">Pilih kategori</option>
-                <option value="Buah Segar">Buah Segar</option>
-                <option value="Buah Kering">Buah Kering</option>
-                <option value="Jus Buah">Jus Buah</option>
-                <option value="Salad Buah">Salad Buah</option>
-                <option value="Smoothie">Smoothie</option>
-              </select>
+              </Label>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      className={errors.category ? "border-red-300" : ""}
+                    >
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Apel">Apel</SelectItem>
+                      <SelectItem value="Jeruk">Jeruk</SelectItem>
+                      <SelectItem value="Mangga">Mangga</SelectItem>
+                      <SelectItem value="Pisang">Pisang</SelectItem>
+                      <SelectItem value="Anggur">Anggur</SelectItem>
+                      <SelectItem value="Strawberry">Strawberry</SelectItem>
+                      <SelectItem value="Melon">Melon</SelectItem>
+                      <SelectItem value="Semangka">Semangka</SelectItem>
+                      <SelectItem value="Pepaya">Pepaya</SelectItem>
+                      <SelectItem value="Nanas">Nanas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category && (
                 <p className="mt-1 text-sm text-red-600">
                   {errors.category.message}
-                </p>
-              )}
-            </div>
-
-            {/* Harga */}
-            <div>
-              <label
-                htmlFor="price"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Harga (Rp) *
-              </label>
-              <input
-                type="number"
-                id="price"
-                min="0"
-                step="0.01"
-                {...register("price", { valueAsNumber: true })}
-                className={`w-full px-3 py-2 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.price ? "border-red-300" : "border-slate-300"
-                }`}
-                placeholder="0"
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.price.message}
-                </p>
-              )}
-            </div>
-
-            {/* Stok */}
-            <div>
-              <label
-                htmlFor="stock"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Stok
-              </label>
-              <input
-                type="number"
-                id="stock"
-                min="0"
-                {...register("stock", { valueAsNumber: true })}
-                className={`w-full px-3 py-2 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.stock ? "border-red-300" : "border-slate-300"
-                }`}
-                placeholder="0"
-              />
-              {errors.stock && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.stock.message}
                 </p>
               )}
             </div>
@@ -236,9 +216,9 @@ export default function TambahProdukPage() {
 
           {/* Upload Gambar */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Produk
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -247,19 +227,14 @@ export default function TambahProdukPage() {
 
             {/* Alternative URL Input */}
             <div className="mt-4">
-              <label
-                htmlFor="imageUrl"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
+              <Label htmlFor="imageUrl" className="mb-2">
                 Atau masukkan URL Gambar
-              </label>
-              <input
+              </Label>
+              <Input
                 type="url"
                 id="imageUrl"
                 {...register("imageUrl")}
-                className={`w-full px-3 py-2 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  errors.imageUrl ? "border-red-300" : "border-slate-300"
-                }`}
+                className={errors.imageUrl ? "border-red-300" : ""}
                 placeholder="https://example.com/image.jpg"
                 disabled={!!uploadedFile}
               />
@@ -273,9 +248,9 @@ export default function TambahProdukPage() {
 
           {/* Deskripsi */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="description" className="mb-2">
               Deskripsi
-            </label>
+            </Label>
             <Controller
               name="description"
               control={control}
@@ -295,27 +270,54 @@ export default function TambahProdukPage() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <Link
-              href="/produk"
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
+          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+            <Button
+              variant="ghost"
+              asChild
+              className="min-h-[44px] w-full sm:w-auto"
             >
-              Batal
-            </Link>
-            <button
+              <Link href="/produk">Batal</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPreview(true)}
+              className="min-h-[44px] w-full sm:w-auto"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </Button>
+            <Button
               type="submit"
-              disabled={loading || uploadLoading}
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={create.loading || uploadLoading}
+              className="min-h-[44px] w-full sm:w-auto"
             >
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : create.loading
                 ? "Menyimpan..."
                 : "Simpan Produk"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
+
+      {/* Preview Modal */}
+      <PreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        title={formData.name || "Produk Baru"}
+      >
+        <ProductPreview
+          product={{
+            ...formData,
+            imageUrl: uploadedFile
+              ? URL.createObjectURL(uploadedFile)
+              : formData.imageUrl,
+            isActive: formData.isActive ?? true,
+          }}
+        />
+      </PreviewModal>
     </div>
   );
 }

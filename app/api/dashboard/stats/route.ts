@@ -11,7 +11,6 @@ export async function GET() {
       activeProducts,
       publishedRecipes,
       publishedPublications,
-      lowStockProducts,
     ] = await Promise.all([
       prisma.product.count(),
       prisma.recipe.count(),
@@ -19,7 +18,6 @@ export async function GET() {
       prisma.product.count({ where: { isActive: true } }),
       prisma.recipe.count({ where: { isPublished: true } }),
       prisma.publication.count({ where: { isPublished: true } }),
-      prisma.product.count({ where: { stock: { lte: 10 } } }),
     ]);
 
     // Get products by category
@@ -95,7 +93,6 @@ export async function GET() {
         activeProducts,
         publishedRecipes,
         publishedPublications,
-        lowStockProducts,
       },
       productsByCategory: productsByCategory.map((item) => ({
         category: item.category,

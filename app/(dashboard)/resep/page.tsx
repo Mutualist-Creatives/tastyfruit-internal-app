@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Clock, Users } from "lucide-react";
 import Link from "next/link";
+import { GridSkeleton } from "@/components/skeletons/list-skeleton";
+import { useCrudApi } from "@/hooks/use-api";
 
 // Mock data untuk sementara
 const mockRecipes = [
@@ -65,19 +67,26 @@ export default function ResepPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus resep ini?")) {
-      try {
-        const response = await fetch(`/api/recipes/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          setRecipes(recipes.filter((r) => r.id !== id));
-        }
-      } catch (error) {
-        console.error("Failed to delete recipe:", error);
-      }
+  const { delete: deleteApi } = useCrudApi();
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus resep "${title}"?`)) {
+      return;
     }
+
+    await deleteApi.execute(
+      () =>
+        fetch(`/api/recipes/${id}`, { method: "DELETE" }).then((res) => {
+          if (!res.ok) throw new Error("Failed to delete recipe");
+          return true;
+        }),
+      {
+        successMessage: `Resep "${title}" berhasil dihapus`,
+        onSuccess: () => {
+          setRecipes(recipes.filter((r) => r.id !== id));
+        },
+      }
+    );
   };
 
   const filteredRecipes = recipes.filter(
@@ -101,8 +110,18 @@ export default function ResepPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="h-9 w-64 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+
+        {/* Search Skeleton */}
+        <div className="h-10 w-80 bg-gray-200 rounded animate-pulse"></div>
+
+        {/* Grid Skeleton */}
+        <GridSkeleton items={6} />
       </div>
     );
   }
@@ -210,8 +229,9 @@ export default function ResepPage() {
                     <Edit className="h-4 w-4" />
                   </Link>
                   <button
-                    onClick={() => handleDelete(recipe.id)}
+                    onClick={() => handleDelete(recipe.id, recipe.title)}
                     className="text-red-600 hover:text-red-800"
+                    disabled={deleteApi.loading}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
