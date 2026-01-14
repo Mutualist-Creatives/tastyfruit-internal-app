@@ -151,66 +151,67 @@ export default function EditPublikasiPage() {
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="title" className="mb-2">
                 Judul Publikasi *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 value={formData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Masukkan judul publikasi"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="author" className="mb-2">
                 Author *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="author"
                 name="author"
                 required
                 value={formData.author}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Nama author"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Label htmlFor="category" className="mb-2">
                 Kategori *
-              </label>
-              <select
-                name="category"
-                required
+              </Label>
+              <Select
                 value={formData.category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, category: value }))
+                }
               >
-                <option value="">Pilih kategori</option>
-                <option value="Event">Event</option>
-                <option value="Aktivitas">Aktivitas</option>
-                <option value="Produk">Produk</option>
-                <option value="Informasi">Informasi</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Event">Event</SelectItem>
+                  <SelectItem value="Aktivitas">Aktivitas</SelectItem>
+                  <SelectItem value="Produk">Produk</SelectItem>
+                  <SelectItem value="Informasi">Informasi</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Excerpt */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="excerpt" className="mb-2">
               Excerpt (Ringkasan)
-            </label>
-            <textarea
+            </Label>
+            <Textarea
+              id="excerpt"
               name="excerpt"
               rows={2}
               value={formData.excerpt}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Ringkasan singkat publikasi (max 500 karakter)"
               maxLength={500}
             />
@@ -221,9 +222,9 @@ export default function EditPublikasiPage() {
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="content" className="mb-2">
               Konten *
-            </label>
+            </Label>
             <TiptapEditor
               content={formData.content}
               onChange={(html) => setFormData({ ...formData, content: html })}
@@ -236,9 +237,9 @@ export default function EditPublikasiPage() {
 
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Cover
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -284,7 +285,7 @@ export default function EditPublikasiPage() {
                 : updatePublication.isPending
                 ? "Menyimpan..."
                 : "Update Publikasi"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

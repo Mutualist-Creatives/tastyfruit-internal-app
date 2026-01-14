@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -13,11 +12,65 @@ import {
   User,
   Users,
   LogOut,
-  ChevronDown,
+  Apple,
   ChevronRight,
 } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-export default function Sidebar() {
+const menuItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+  },
+  {
+    title: "Produk",
+    url: "/produk",
+    icon: Package,
+  },
+  {
+    title: "Artikel",
+    icon: FileText,
+    items: [
+      {
+        title: "Publikasi",
+        url: "/publikasi",
+        icon: FileText,
+      },
+      {
+        title: "Resep",
+        url: "/resep",
+        icon: CookingPot,
+      },
+    ],
+  },
+  {
+    title: "Users",
+    url: "/users",
+    icon: Users,
+  },
+];
+
+export default function AppSidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);

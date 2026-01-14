@@ -4,6 +4,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import SearchFilter from "@/components/ui/search-filter";
 import Pagination from "@/components/ui/pagination";
 import { useProducts, useDeleteProduct } from "@/lib/hooks";
@@ -17,6 +35,7 @@ interface FruitType {
   name: string;
   image: string | null;
   description: string | null;
+  order?: number;
 }
 
 interface Product {
@@ -47,6 +66,69 @@ export default function ProdukPage() {
     category: "",
     isActive: "",
   });
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set()
+  );
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    productId: string;
+    productName: string;
+  }>({
+    isOpen: false,
+    productId: "",
+    productName: "",
+  });
+  const [fruitTypeDeleteDialog, setFruitTypeDeleteDialog] = useState<{
+    isOpen: boolean;
+    fruitTypeId: string;
+    fruitTypeName: string;
+  }>({
+    isOpen: false,
+    fruitTypeId: "",
+    fruitTypeName: "",
+  });
+  const [selectedFruitType, setSelectedFruitType] = useState<FruitType | null>(
+    null
+  );
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+
+  const {
+    data: fetchedProducts,
+    loading,
+    error,
+    fetch: fetchProducts,
+  } = useFetch<Product[]>([]);
+  const { delete: deleteApi, update: updateApi } = useCrudApi();
+  const [products, setProducts] = useState<Product[]>([]);
+
+  /**
+   * Setup drag and drop sensors with touch support
+   *
+   * PointerSensor: Handles mouse and touch drag events
+   * - activationConstraint.distance: Requires 8px movement before drag starts
+   *   This prevents accidental drags on touch devices and when clicking buttons
+   *
+   * KeyboardSensor: Enables keyboard-based drag and drop for accessibility
+   * - Users can use arrow keys to reorder items
+   * - Provides accessible alternative to mouse/touch dragging
+   */
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sync fetched products with local state
+  useEffect(() => {
+    if (fetchedProducts) {
+      setProducts(fetchedProducts);
+    }
+  }, [fetchedProducts]);
 
   const { data, isLoading, error } = useProducts({
     page: currentPage,
@@ -96,16 +178,128 @@ export default function ProdukPage() {
     setCurrentPage(page);
   };
 
+  /**
+   * Handle drag start event for products
+   * Stores the active product ID to show drag overlay
+   */
+  const handleProductDragStart = (event: DragStartEvent) => {
+    setActiveProductId(event.active.id as string);
+  };
+
+  /**
+   * Handle drag end event for products
+   *
+   * Implements optimistic UI updates:
+   * 1. Immediately updates the UI with new order
+   * 2. Sends API request to persist the change
+   * 3. Rolls back on error (handled by API hook)
+   *
+   * This provides instant feedback to users while ensuring data consistency
+   */
+  const handleProductDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveProductId(null);
+
+    // No change if dropped in same position or invalid drop
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = products.findIndex((p) => p.id === active.id);
+    const newIndex = products.findIndex((p) => p.id === over.id);
+
+    // Optimistic update: Update UI immediately before API call
+    const newProducts = arrayMove(products, oldIndex, newIndex);
+    setProducts(newProducts);
+
+    // Update order in database
+    try {
+      const response = await fetch(`/api/products/${active.id}/order`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newOrder: newIndex }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update order");
+      }
+
+      // Show success toast
+      const { toast } = await import("sonner");
+      toast.success("Urutan berhasil diperbarui");
+    } catch (error) {
+      // Rollback on error
+      setProducts(products);
+      const { toast } = await import("sonner");
+      toast.error("Gagal memperbarui urutan");
+    }
+  };
+
+  const handleFruitTypeReorder = async (
+    fruitTypeId: string,
+    newOrder: number
+  ) => {
+    // Find the product that contains this fruit type
+    const productIndex = products.findIndex((p) =>
+      p.fruitTypes?.some((ft) => ft.id === fruitTypeId)
+    );
+
+    if (productIndex === -1) return;
+
+    const product = products[productIndex];
+    const fruitTypes = product.fruitTypes || [];
+
+    const oldIndex = fruitTypes.findIndex((ft) => ft.id === fruitTypeId);
+    if (oldIndex === -1) return;
+
+    // Optimistic update
+    const newFruitTypes = arrayMove(fruitTypes, oldIndex, newOrder);
+    const newProducts = [...products];
+    newProducts[productIndex] = {
+      ...product,
+      fruitTypes: newFruitTypes,
+    };
+    setProducts(newProducts);
+
+    // Update order in database
+    try {
+      const response = await fetch(`/api/fruit-types/${fruitTypeId}/order`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newOrder }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update order");
+      }
+
+      // Show success toast
+      const { toast } = await import("sonner");
+      toast.success("Urutan berhasil diperbarui");
+    } catch (error) {
+      // Rollback on error
+      setProducts(products);
+      const { toast } = await import("sonner");
+      toast.error("Gagal memperbarui urutan");
+    }
+  };
+
   const filterOptions = [
     {
       label: "Kategori",
       key: "category",
       options: [
-        { label: "Buah Segar", value: "Buah Segar" },
-        { label: "Buah Kering", value: "Buah Kering" },
-        { label: "Jus Buah", value: "Jus Buah" },
-        { label: "Salad Buah", value: "Salad Buah" },
-        { label: "Smoothie", value: "Smoothie" },
+        { label: "Apel", value: "Apel" },
+        { label: "Jeruk", value: "Jeruk" },
+        { label: "Mangga", value: "Mangga" },
+        { label: "Pisang", value: "Pisang" },
+        { label: "Anggur", value: "Anggur" },
+        { label: "Strawberry", value: "Strawberry" },
+        { label: "Melon", value: "Melon" },
+        { label: "Semangka", value: "Semangka" },
+        { label: "Pepaya", value: "Pepaya" },
+        { label: "Nanas", value: "Nanas" },
       ],
     },
     {
@@ -152,16 +346,16 @@ export default function ProdukPage() {
         )}
       </div>
 
-      {/* Search & Filter */}
-      <SearchFilter
-        searchTerm={searchTerm}
-        onSearchChange={handleSearchChange}
-        filters={filterOptions}
-        activeFilters={filters}
-        onFilterChange={handleFilterChange}
-        onClearFilters={handleClearFilters}
-        placeholder="Cari produk..."
-      />
+        {/* Search & Filter */}
+        <SearchFilter
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          filters={filterOptions}
+          activeFilters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={handleClearFilters}
+          placeholder="Cari produk..."
+        />
 
       {/* Products Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -244,11 +438,24 @@ export default function ProdukPage() {
             <div className="text-slate-500">
               {searchTerm || Object.values(filters).some((f) => f)
                 ? "Tidak ada produk yang ditemukan"
-                : "Belum ada produk"}
-            </div>
-          </div>
+                : "Belum ada produk"
+            }
+            description={
+              searchTerm || Object.values(filters).some((f) => f)
+                ? "Coba ubah kata kunci pencarian atau filter Anda"
+                : "Mulai dengan menambahkan produk pertama Anda"
+            }
+            action={
+              !searchTerm && !Object.values(filters).some((f) => f)
+                ? {
+                    label: "Tambah Produk Pertama",
+                    onClick: () => router.push("/produk/tambah"),
+                    icon: <Plus className="size-4 mr-2" />,
+                  }
+                : undefined
+            }
+          />
         )}
-      </div>
 
       {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (

@@ -1,7 +1,7 @@
 "use client";
 
 import StatCard from "@/components/stat-card";
-import SalesChart from "@/components/sales-chart";
+import ContentGrowthChart from "@/components/content-growth-chart";
 import RecentActivity from "@/components/recent-activity";
 import { Package, FileText, CookingPot } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks";
@@ -11,19 +11,21 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading dashboard...</div>
-      </div>
+      <ErrorState
+        title="Gagal Memuat Dashboard"
+        message="Tidak dapat memuat data dashboard. Silakan coba lagi."
+        onRetry={fetchDashboardStats}
+      />
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-red-600">
-          Failed to load dashboard data
-        </div>
-      </div>
+      <ErrorState
+        title="Data Tidak Tersedia"
+        message="Data dashboard tidak tersedia saat ini."
+        onRetry={fetchDashboardStats}
+      />
     );
   }
 
@@ -51,10 +53,24 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-heading text-3xl font-bold text-slate-800">
-        Dashboard Overview
-      </h1>
+    <ErrorBoundary>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Selamat datang di TastyFruit Admin Panel
+            </p>
+          </div>
+          <Badge
+            variant="outline"
+            className="bg-[#B5FE28] text-[#003CE9] border-[#003CE9]"
+          >
+            <Activity className="mr-1 h-3 w-3" />
+            Live
+          </Badge>
+        </div>
 
       {/* Bagian Kartu Statistik Utama */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -87,6 +103,6 @@ export default function DashboardPage() {
           />
         </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

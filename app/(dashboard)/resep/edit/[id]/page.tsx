@@ -230,14 +230,13 @@ export default function EditResepPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Judul Resep *
-              </label>
-              <input
-                type="text"
+              </Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 value={formData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Masukkan judul resep"
               />
             </div>
@@ -288,9 +287,9 @@ export default function EditResepPage() {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="description" className="mb-2">
               Deskripsi
-            </label>
+            </Label>
             <TiptapEditor
               content={formData.description}
               onChange={(html) =>
@@ -302,9 +301,9 @@ export default function EditResepPage() {
 
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <Label htmlFor="image" className="mb-2">
               Gambar Resep
-            </label>
+            </Label>
             <FileUpload
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
@@ -315,56 +314,54 @@ export default function EditResepPage() {
           {/* Ingredients */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-slate-700">
-                Bahan-bahan *
-              </label>
-              <button
+              <Label className="mb-2">Bahan-bahan *</Label>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={addIngredient}
-                className="flex items-center gap-1 text-sm text-primary hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 Tambah Bahan
-              </button>
+              </Button>
             </div>
             <div className="space-y-3">
               {ingredients.map((ingredient, index) => (
                 <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Nama bahan"
                     value={ingredient.name}
                     onChange={(e) =>
                       updateIngredient(index, "name", e.target.value)
                     }
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex-1"
                   />
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Jumlah"
                     value={ingredient.amount}
                     onChange={(e) =>
                       updateIngredient(index, "amount", e.target.value)
                     }
-                    className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-32"
                   />
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Catatan (optional)"
                     value={ingredient.note || ""}
                     onChange={(e) =>
                       updateIngredient(index, "note", e.target.value)
                     }
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex-1"
                   />
                   {ingredients.length > 1 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => removeIngredient(index)}
                       className="text-red-600 hover:text-red-800"
                     >
                       <X className="h-5 w-5" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
@@ -374,17 +371,16 @@ export default function EditResepPage() {
           {/* Instructions */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-slate-700">
-                Langkah-langkah *
-              </label>
-              <button
+              <Label className="mb-2">Langkah-langkah *</Label>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={addInstruction}
-                className="flex items-center gap-1 text-sm text-primary hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 Tambah Langkah
-              </button>
+              </Button>
             </div>
             <div className="space-y-4">
               {instructions.map((instruction, index) => (
@@ -397,32 +393,32 @@ export default function EditResepPage() {
                       Langkah {index + 1}
                     </span>
                     {instructions.length > 1 && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => removeInstruction(index)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     )}
                   </div>
-                  <input
-                    type="text"
+                  <Input
                     placeholder="Judul langkah"
                     value={instruction.title}
                     onChange={(e) =>
                       updateInstruction(index, "title", e.target.value)
                     }
-                    className="w-full px-3 py-2 mb-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="mb-2"
                   />
-                  <textarea
+                  <Textarea
                     placeholder="Deskripsi langkah"
                     rows={2}
                     value={instruction.description}
                     onChange={(e) =>
                       updateInstruction(index, "description", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               ))}
@@ -447,7 +443,7 @@ export default function EditResepPage() {
                 : updateRecipe.isPending
                 ? "Menyimpan..."
                 : "Update Resep"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
