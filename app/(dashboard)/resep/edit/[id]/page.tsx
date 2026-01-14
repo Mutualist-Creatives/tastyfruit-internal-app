@@ -5,8 +5,10 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
-import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { toast } from "sonner";
+import { useRecipe, useUpdateRecipe } from "@/lib/hooks";
+import { uploadApi } from "@/lib/api-client";
 
 interface Ingredient {
   name: string;
@@ -24,12 +26,12 @@ export default function EditResepPage() {
   const params = useParams();
   const recipeId = params.id as string;
 
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(true);
-  const [apiError, setApiError] = useState<string>("");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const { data, isLoading, error } = useRecipe(recipeId);
+  const updateRecipe = useUpdateRecipe();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -38,7 +40,6 @@ export default function EditResepPage() {
     servings: "",
     cookingTime: "",
     author: "",
-    difficulty: "Easy",
   });
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([
@@ -49,51 +50,37 @@ export default function EditResepPage() {
     { title: "", description: "" },
   ]);
 
+  // Populate form when data loads
   useEffect(() => {
-    fetchRecipe();
-  }, [recipeId]);
+    if (data?.data) {
+      const recipe = data.data;
+      setFormData({
+        title: recipe.title,
+        description: recipe.description || "",
+        imageUrl: recipe.imageUrl || "",
+        servings: recipe.servings || "",
+        cookingTime: recipe.cookingTime || "",
+        author: recipe.author,
+      });
+      setCurrentImageUrl(recipe.imageUrl || "");
 
-  const fetchRecipe = async () => {
-    try {
-      const response = await fetch(`/api/recipes/${recipeId}`);
-      if (response.ok) {
-        const recipe = await response.json();
-        setFormData({
-          title: recipe.title,
-          description: recipe.description || "",
-          imageUrl: recipe.imageUrl || "",
-          servings: recipe.servings || "",
-          cookingTime: recipe.cookingTime || "",
-          author: recipe.author,
-          difficulty: recipe.difficulty,
-        });
-        setCurrentImageUrl(recipe.imageUrl || "");
-
-        // Parse JSON ingredients and instructions
-        if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-          setIngredients(
-            recipe.ingredients.length > 0
-              ? recipe.ingredients
-              : [{ name: "", amount: "", note: "" }]
-          );
-        }
-        if (recipe.instructions && Array.isArray(recipe.instructions)) {
-          setInstructions(
-            recipe.instructions.length > 0
-              ? recipe.instructions
-              : [{ title: "", description: "" }]
-          );
-        }
-      } else {
-        setApiError("Resep tidak ditemukan");
+      // Parse JSON ingredients and instructions
+      if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+        setIngredients(
+          recipe.ingredients.length > 0
+            ? recipe.ingredients
+            : [{ name: "", amount: "", note: "" }]
+        );
       }
-    } catch (error) {
-      console.error("Error:", error);
-      setApiError("Gagal memuat data resep");
-    } finally {
-      setFetchLoading(false);
+      if (recipe.instructions && Array.isArray(recipe.instructions)) {
+        setInstructions(
+          recipe.instructions.length > 0
+            ? recipe.instructions
+            : [{ title: "", description: "" }]
+        );
+      }
     }
-  };
+  }, [data]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -143,34 +130,37 @@ export default function EditResepPage() {
   };
 
   const handleFileSelect = (file: File) => {
-    setUploadedFile(file);
+    // Store file temporarily, upload will happen on submit
+    setSelectedFile(file);
+    // Show preview using local URL
+    setCurrentImageUrl(URL.createObjectURL(file));
   };
 
   const handleFileRemove = () => {
-    setUploadedFile(null);
-    setFormData({ ...formData, imageUrl: currentImageUrl });
+    setSelectedFile(null);
+    setFormData({ ...formData, imageUrl: "" });
+    setCurrentImageUrl("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setApiError("");
 
     try {
       let imageUrl = formData.imageUrl;
 
-      // Upload file if selected
-      if (uploadedFile) {
+      // Upload file if a new file was selected
+      if (selectedFile) {
         setUploadLoading(true);
         try {
-          imageUrl = await storage.uploadRecipeImage(uploadedFile, recipeId);
+          const result = await uploadApi.uploadImage(selectedFile);
+          imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
-          setApiError("Gagal mengupload gambar");
-          return;
-        } finally {
+          toast.error("Gagal mengupload gambar");
           setUploadLoading(false);
+          return;
         }
+        setUploadLoading(false);
       }
 
       // Filter out empty ingredients and instructions
@@ -181,34 +171,32 @@ export default function EditResepPage() {
         (inst) => inst.title && inst.description
       );
 
-      const response = await fetch(`/api/recipes/${recipeId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await updateRecipe.mutateAsync({
+        id: recipeId,
+        data: {
           ...formData,
-          imageUrl,
           ingredients: validIngredients,
           instructions: validInstructions,
-        }),
+        },
       });
 
-      if (response.ok) {
-        router.push("/resep");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal mengupdate resep");
-      }
+      toast.success("Resep berhasil diperbarui");
+      router.push("/resep");
     } catch (error) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      toast.error("Gagal mengupdate resep");
     }
   };
 
-  if (fetchLoading) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Resep tidak ditemukan</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
@@ -219,31 +207,27 @@ export default function EditResepPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href="/resep"
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
+          <ArrowLeft className="h-6 w-6" />
+          <span className="font-medium">Kembali</span>
         </Link>
-        <h1 className="font-heading text-3xl font-bold text-slate-800">
-          Edit Resep
-        </h1>
+        <div className="w-px h-10 bg-slate-300 mx-2"></div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Edit Resep</h1>
+          <p className="text-slate-600 mt-1">Perbarui informasi resep</p>
+        </div>
       </div>
 
       {/* Form */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        {apiError && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {apiError}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Judul Resep *
               </label>
@@ -255,6 +239,21 @@ export default function EditResepPage() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Masukkan judul resep"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Author *
+              </label>
+              <input
+                type="text"
+                name="author"
+                required
+                value={formData.author}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Nama author"
               />
             </div>
 
@@ -284,37 +283,6 @@ export default function EditResepPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 30 menit"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Author *
-              </label>
-              <input
-                type="text"
-                name="author"
-                required
-                value={formData.author}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Nama author"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Tingkat Kesulitan
-              </label>
-              <select
-                name="difficulty"
-                value={formData.difficulty}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="Easy">Easy</option>
-                <option value="Medium">Medium</option>
-                <option value="Hard">Hard</option>
-              </select>
             </div>
           </div>
 
@@ -471,12 +439,12 @@ export default function EditResepPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading || uploadLoading}
+              disabled={updateRecipe.isPending || uploadLoading}
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : updateRecipe.isPending
                 ? "Menyimpan..."
                 : "Update Resep"}
             </button>

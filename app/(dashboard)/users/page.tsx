@@ -1,208 +1,230 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Edit, Trash, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import SearchFilter from "@/components/ui/search-filter";
-import Pagination from "@/components/ui/pagination";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  createdAt: string;
-}
+import { usersApi, User, PaginatedResponse } from "@/lib/api-client";
+import { useAuth } from "@/components/auth/auth-provider";
+import AlertDialog from "@/components/ui/alert-dialog";
+// import Pagination from "@/components/ui/pagination"; // Consider using if available, else standard
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
     total: 0,
     totalPages: 0,
   });
-  const [filters, setFilters] = useState({
-    search: "",
-    role: "",
-  });
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, [pagination.page, filters]);
+    // Redirect if not admin
+    if (currentUser && currentUser.role !== "admin") {
+      router.push("/dashboard");
+      toast.error("Anda tidak memiliki akses ke halaman ini");
+    }
+  }, [currentUser, router]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.role && { role: filters.role }),
-      });
-
-      const response = await fetch(`/api/users?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch users");
-
-      const data = await response.json();
-      setUsers(data.users);
-      setPagination(data.pagination);
+      const response = await usersApi.getAll(
+        pagination.page,
+        pagination.limit,
+        searchTerm
+      );
+      if (response.success) {
+        setUsers(response.data);
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          total: response.pagination.total,
+          totalPages: response.pagination.totalPages,
+        });
+      }
     } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Gagal memuat data users");
+      console.error("Failed to fetch users:", error);
+      toast.error("Gagal memuat data user");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus user ini?")) return;
+  useEffect(() => {
+    if (currentUser?.role === "admin") {
+      fetchUsers();
+    }
+  }, [pagination.page, searchTerm, currentUser]); // Debounce search in real app
+
+  const confirmDelete = (id: string) => {
+    setUserToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!userToDelete) return;
 
     try {
-      const response = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete user");
-      }
-
+      await usersApi.delete(userToDelete);
       toast.success("User berhasil dihapus");
-      fetchUsers();
+      fetchUsers(); // Refresh list
     } catch (error: any) {
-      console.error("Error deleting user:", error);
+      console.error("Failed to delete user:", error);
       toast.error(error.message || "Gagal menghapus user");
+    } finally {
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const colors = {
-      admin: "bg-red-100 text-red-800",
-      editor: "bg-blue-100 text-blue-800",
-      viewer: "bg-gray-100 text-gray-800",
-    };
-    return colors[role as keyof typeof colors] || colors.viewer;
-  };
+  if (!currentUser || currentUser.role !== "admin") {
+    return null; // Don't render anything while redirecting
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-gray-600 mt-1">Kelola admin dan user lainnya</p>
+          <h1 className="text-3xl font-bold text-slate-900">Users</h1>
+          <p className="mt-2 text-slate-600">Kelola data pengguna aplikasi</p>
         </div>
-        <Link
-          href="/users/tambah"
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-        >
-          + Tambah User
-        </Link>
+        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <Link
+            href="/users/tambah"
+            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah User
+          </Link>
+        </div>
       </div>
 
-      <SearchFilter
-        searchPlaceholder="Cari user..."
-        onSearchChange={(search) => setFilters({ ...filters, search })}
-        filters={[
-          {
-            label: "Role",
-            value: filters.role,
-            onChange: (role) => setFilters({ ...filters, role }),
-            options: [
-              { label: "Semua Role", value: "" },
-              { label: "Admin", value: "admin" },
-              { label: "Editor", value: "editor" },
-              { label: "Viewer", value: "viewer" },
-            ],
-          },
-        ]}
-      />
+      <div className="flex items-center gap-4 bg-white p-4 rounded-lg border shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari user..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-md border-slate-300 pl-10 focus:border-primary focus:ring-primary sm:text-sm py-2 border"
+          />
+        </div>
+      </div>
 
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Memuat data...</p>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border">
-          <p className="text-gray-600">Tidak ada user ditemukan</p>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+      <div className="bg-white rounded-lg shadow border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+                >
+                  Nama
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+                >
+                  Email
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+                >
+                  Role
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500"
+                >
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {loading ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nama
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dibuat
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Aksi
-                  </th>
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-2 text-sm text-slate-500">
+                      Memuat data...
+                    </p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.name}
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <p className="text-slate-500">Belum ada data user</p>
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="text-sm font-medium text-slate-900">
+                        {user.name || "-"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{user.email}</div>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
+                      {user.email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadge(
-                          user.role
-                        )}`}
+                        className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                          user.role === "admin"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
                       >
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(user.createdAt).toLocaleDateString("id-ID")}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        href={`/users/edit/${user.id}`}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Hapus
-                      </button>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        <Link
+                          href={`/users/edit/${user.id}`}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => confirmDelete(user.id)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-600"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            onPageChange={(page) => setPagination({ ...pagination, page })}
-          />
-        </>
-      )}
+      <AlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        title="Hapus User"
+        description="Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+      />
     </div>
   );
 }

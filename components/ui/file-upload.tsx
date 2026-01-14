@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { X, Image as ImageIcon } from "lucide-react";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
-  onFileRemove: () => void;
+  onFileRemove?: () => void;
   currentImageUrl?: string;
   accept?: string;
   maxSize?: number; // in MB
   className?: string;
+  previewUrl?: string; // Compatibility
+  error?: string; // Compatibility
 }
 
 export default function FileUpload({
@@ -78,10 +80,11 @@ export default function FileUpload({
 
   const handleRemove = () => {
     setPreview(null);
-    onFileRemove();
+    if (onFileRemove) onFileRemove();
     if (inputRef.current) {
       inputRef.current.value = "";
     }
+    // Do NOT call onFileSelect(null) because signature is strict
   };
 
   const openFileDialog = () => {

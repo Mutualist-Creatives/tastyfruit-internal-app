@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
-import { storage } from "@/lib/supabase/storage";
+import { uploadApi } from "@/lib/api-client";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { useCreatePublication } from "@/lib/hooks";
+import { toast } from "sonner";
 
 export default function TambahPublikasiPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+
+  const createPublication = useCreatePublication();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -52,8 +54,6 @@ export default function TambahPublikasiPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setApiError("");
 
     try {
       let imageUrl = formData.imageUrl;
@@ -62,66 +62,52 @@ export default function TambahPublikasiPage() {
       if (uploadedFile) {
         setUploadLoading(true);
         try {
-          const tempId = Date.now().toString();
-          imageUrl = await storage.uploadPublicationImage(uploadedFile, tempId);
+          const result = await uploadApi.uploadImage(uploadedFile);
+          imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
-          setApiError("Gagal mengupload gambar");
-          return;
-        } finally {
+          toast.error("Gagal mengupload gambar");
           setUploadLoading(false);
+          return;
         }
+        setUploadLoading(false);
       }
 
-      const response = await fetch("/api/publications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          imageUrl,
-        }),
+      await createPublication.mutateAsync({
+        ...formData,
+        imageUrl,
       });
 
-      if (response.ok) {
-        router.push("/publikasi");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal menambah publikasi");
-      }
+      toast.success("Publikasi berhasil dibuat");
+      router.push("/publikasi");
     } catch (error) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      toast.error("Gagal membuat publikasi");
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href="/publikasi"
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
+          <ArrowLeft className="h-6 w-6" />
+          <span className="font-medium">Kembali</span>
         </Link>
-        <h1 className="font-heading text-3xl font-bold text-slate-800">
-          Tambah Publikasi Baru
-        </h1>
+        <div className="w-px h-10 bg-slate-300 mx-2"></div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">
+            Tambah Publikasi Baru
+          </h1>
+          <p className="text-slate-600 mt-1">Buat publikasi baru</p>
+        </div>
       </div>
 
       {/* Form */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        {apiError && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {apiError}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -245,12 +231,12 @@ export default function TambahPublikasiPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading || uploadLoading}
+              disabled={createPublication.isPending || uploadLoading}
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : createPublication.isPending
                 ? "Menyimpan..."
                 : "Simpan Publikasi"}
             </button>

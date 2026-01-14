@@ -3,11 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
+import AlertDialog from "@/components/ui/alert-dialog";
 import {
   Home,
   Package,
   FileText,
   CookingPot,
+  User,
   Users,
   LogOut,
   ChevronDown,
@@ -16,12 +19,19 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { logout, user } = useAuth();
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [artikelOpen, setArtikelOpen] = useState(
     pathname.startsWith("/publikasi") || pathname.startsWith("/resep")
   );
 
   const isArtikelActive =
     pathname.startsWith("/publikasi") || pathname.startsWith("/resep");
+
+  const handleLogout = () => {
+    logout();
+    setLogoutDialogOpen(false);
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 flex-col border-r bg-slate-50">
@@ -50,20 +60,22 @@ export default function Sidebar() {
               </Link>
             </li>
 
-            {/* Produk */}
-            <li>
-              <Link
-                href="/produk"
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  pathname.startsWith("/produk")
-                    ? "bg-blue-100 font-bold text-primary"
-                    : ""
-                }`}
-              >
-                <Package className="h-5 w-5" />
-                Produk
-              </Link>
-            </li>
+            {/* Produk (Admin Only) */}
+            {user?.role === "admin" && (
+              <li>
+                <Link
+                  href="/produk"
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
+                    pathname.startsWith("/produk")
+                      ? "bg-blue-100 font-bold text-primary"
+                      : ""
+                  }`}
+                >
+                  <Package className="h-5 w-5" />
+                  Produk
+                </Link>
+              </li>
+            )}
 
             {/* Artikel (Accordion) */}
             <li>
@@ -117,36 +129,58 @@ export default function Sidebar() {
               )}
             </li>
 
-            {/* Users */}
-            <li>
-              <Link
-                href="/users"
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-                  pathname.startsWith("/users")
-                    ? "bg-blue-100 font-bold text-primary"
-                    : ""
-                }`}
-              >
-                <Users className="h-5 w-5" />
-                Users
-              </Link>
-            </li>
+            {/* Users (Admin Only) */}
+            {user?.role === "admin" && (
+              <li>
+                <Link
+                  href="/users"
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
+                    pathname.startsWith("/users")
+                      ? "bg-blue-100 font-bold text-primary"
+                      : ""
+                  }`}
+                >
+                  <Users className="h-5 w-5" />
+                  Users
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 
         {/* Bagian Logout */}
-        <div>
-          <form action="/auth/logout" method="post">
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900"
-            >
-              <LogOut className="h-5 w-5" />
-              Logout
-            </button>
-          </form>
+        <div className="space-y-1">
+          <Link
+            href="/profile"
+            className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
+              pathname.startsWith("/profile")
+                ? "bg-blue-100 font-bold text-primary"
+                : ""
+            }`}
+          >
+            <User className="h-5 w-5" />
+            Profile
+          </Link>
+          <button
+            onClick={() => setLogoutDialogOpen(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900"
+          >
+            <LogOut className="h-5 w-5" />
+            Logout
+          </button>
         </div>
       </div>
+
+      <AlertDialog
+        isOpen={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+        onConfirm={handleLogout}
+        title="Konfirmasi Logout"
+        description="Apakah Anda yakin ingin keluar dari aplikasi?"
+        confirmLabel="Keluar"
+        cancelLabel="Batal"
+        isDestructive={true}
+      />
     </aside>
   );
 }

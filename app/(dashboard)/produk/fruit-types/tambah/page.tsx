@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 import FileUpload from "@/components/ui/file-upload";
-import { storage } from "@/lib/supabase/storage";
+import { uploadApi, fruitTypesApi, productsApi } from "@/lib/api-client";
 import TiptapEditor from "@/components/ui/tiptap-editor";
 
 const fruitTypeSchema = z.object({
@@ -50,10 +50,9 @@ function TambahFruitTypeForm() {
 
   const fetchProduct = async (id: string) => {
     try {
-      const response = await fetch(`/api/products/${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProductName(data.name);
+      const response = await productsApi.getById(id);
+      if (response.success) {
+        setProductName(response.data.name);
       }
     } catch (error) {
       console.error("Error fetching product:", error);
@@ -68,27 +67,17 @@ function TambahFruitTypeForm() {
 
       // Upload image if provided
       if (imageFile) {
-        const fruitTypeId = `ft-${Date.now()}`;
-        imageUrl = await storage.uploadFile(
-          imageFile,
-          "tastyfruit-uploads",
-          `fruit-types/${fruitTypeId}-${imageFile.name}`
-        );
+        const result = await uploadApi.uploadImage(imageFile);
+        imageUrl = result.data.url;
       }
 
-      const response = await fetch("/api/fruit-types", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          image: imageUrl,
-        }),
+      const descriptionVal = data.description ?? undefined;
+
+      await fruitTypesApi.create({
+        ...data,
+        description: descriptionVal,
+        image: imageUrl || "",
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create fruit type");
-      }
 
       toast.success("Fruit type berhasil ditambahkan");
       router.push("/produk");

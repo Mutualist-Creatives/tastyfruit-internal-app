@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -11,8 +10,7 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
-  const supabase = createClient();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,19 +18,10 @@ export default function LoginForm() {
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        setError(error.message);
-      } else if (data.user) {
-        router.push("/dashboard");
-        router.refresh();
-      }
-    } catch (err) {
-      setError("An unexpected error occurred");
+      await login(email, password);
+      // Router push is handled in AuthProvider
+    } catch {
+      setError("Invalid email or password");
     } finally {
       setLoading(false);
     }

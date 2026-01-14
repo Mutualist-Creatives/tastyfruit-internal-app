@@ -1,74 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
-import {
-  updateUserSchema,
-  type UpdateUserFormData,
-} from "@/lib/validations/user";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { usersApi } from "@/lib/api-client";
+import { useAuth } from "@/components/auth/auth-provider";
+
+const updateUserSchema = z.object({
+  name: z.string().min(1, "Nama wajib diisi"),
+  email: z.string().email("Email tidak valid"),
+  password: z
+    .string()
+    .min(6, "Password minimal 6 karakter")
+    .optional()
+    .or(z.literal("")),
+  role: z.enum(["admin", "user", "editor"]),
+});
+
+type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
-    reset,
   } = useForm<UpdateUserFormData>({
     resolver: zodResolver(updateUserSchema),
   });
 
+  // Redirect if not admin
+  if (user && user.role !== "admin") {
+    router.push("/dashboard");
+  }
+
   useEffect(() => {
-    fetchUser();
-  }, [params.id]);
+    const fetchUser = async () => {
+      try {
+        setFetching(true);
+        const response = await usersApi.getById(params.id as string);
+        if (response.success) {
+          const userData = response.data;
+          setValue("name", userData.name || "");
+          setValue("email", userData.email);
+          setValue("role", userData.role as any);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        toast.error("Gagal memuat data user");
+        router.push("/users");
+      } finally {
+        setFetching(false);
+      }
+    };
 
-  const fetchUser = async () => {
-    try {
-      setFetching(true);
-      const response = await fetch(`/api/users/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch user");
-
-      const data = await response.json();
-      reset({
-        name: data.name,
-        email: data.email,
-        role: data.role,
-      });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      toast.error("Gagal memuat data user");
-    } finally {
-      setFetching(false);
+    if (user?.role === "admin") {
+      fetchUser();
     }
-  };
+  }, [params.id, user, router, setValue]);
 
   const onSubmit = async (data: UpdateUserFormData) => {
     try {
       setLoading(true);
-
-      const response = await fetch(`/api/users/${params.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update user");
+      // Remove empty password if not changed
+      const updateData = { ...data };
+      if (!updateData.password) {
+        delete updateData.password;
       }
 
-      toast.success("User berhasil diupdate");
+      await usersApi.update(params.id as string, updateData);
+      toast.success("User berhasil diperbarui");
       router.push("/users");
     } catch (error: any) {
       console.error("Error updating user:", error);
-      toast.error(error.message || "Gagal mengupdate user");
+      toast.error(error.message || "Gagal memperbarui user");
     } finally {
       setLoading(false);
     }
@@ -76,115 +92,121 @@ export default function EditUserPage() {
 
   if (fetching) {
     return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Memuat data...</p>
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  // Double check rendering
+  if (user && user.role !== "admin") return null;
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Edit User</h1>
-        <p className="text-gray-600 mt-1">Update informasi user</p>
+    <div className="max-w-2xl space-y-6">
+      <div className="flex items-center gap-4">
+        <Link
+          href="/users"
+          className="rounded-full p-2 hover:bg-slate-100 transition-colors"
+        >
+          <ChevronLeft className="h-6 w-6 text-slate-600" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Edit User</h1>
+          <p className="text-slate-600">Perbarui informasi pengguna</p>
+        </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-lg shadow p-6 space-y-6"
-      >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nama Lengkap
-          </label>
-          <input
-            type="text"
-            {...register("name")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="John Doe"
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
+      <div className="bg-white rounded-lg shadow border p-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nama Lengkap
+              </label>
+              <input
+                type="text"
+                {...register("name")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Masukkan nama lengkap"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email
-          </label>
-          <input
-            type="email"
-            {...register("email")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="john@tastyfruit.com"
-          />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                {...register("email")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="nama@email.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Password Baru (opsional)
-          </label>
-          <input
-            type="password"
-            {...register("password")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="Kosongkan jika tidak ingin mengubah"
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.password.message}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-gray-500">
-            Kosongkan jika tidak ingin mengubah password
-          </p>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Password (Opsional)
+              </label>
+              <input
+                type="password"
+                {...register("password")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Biarkan kosong jika tidak ingin mengubah"
+              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Role
-          </label>
-          <select
-            {...register("role")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-          >
-            <option value="admin">Admin - Full access</option>
-            <option value="editor">Editor - Can create & edit</option>
-            <option value="viewer">Viewer - Read only</option>
-          </select>
-          {errors.role && (
-            <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Role
+              </label>
+              <select
+                {...register("role")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
+          </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-yellow-800">
-            <strong>Perhatian:</strong> Mengubah role akan mempengaruhi akses
-            user ke sistem.
-          </p>
-        </div>
-
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Menyimpan..." : "Update User"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Batal
-          </button>
-        </div>
-      </form>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <Link
+              href="/users"
+              className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </Link>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

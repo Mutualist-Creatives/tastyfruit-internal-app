@@ -9,30 +9,36 @@ async function main() {
       data: {
         name: "Mangga Harum Manis",
         description: "Mangga segar dengan rasa manis dan harum yang khas",
-        price: 25000,
-        category: "Buah Segar",
-        stock: 50,
-        imageUrl: "https://example.com/mangga.jpg",
+        slug: "mangga-harum-manis",
+        imageUrl: "https://tastyfruit.com/mangga.jpg",
+        nutrition: {
+          energi: "60 kcal",
+          karbo: "15g",
+        },
       },
     }),
     prisma.product.create({
       data: {
         name: "Buah Naga Merah",
         description: "Buah naga merah segar kaya antioksidan",
-        price: 35000,
-        category: "Buah Segar",
-        stock: 30,
-        imageUrl: "https://example.com/buah-naga.jpg",
+        slug: "buah-naga-merah",
+        imageUrl: "https://tastyfruit.com/buah-naga.jpg",
+        nutrition: {
+          energi: "50 kcal",
+          serat: "3g",
+        },
       },
     }),
     prisma.product.create({
       data: {
         name: "Jus Jeruk Segar",
         description: "Jus jeruk segar tanpa pengawet",
-        price: 15000,
-        category: "Jus Buah",
-        stock: 100,
-        imageUrl: "https://example.com/jus-jeruk.jpg",
+        slug: "jus-jeruk-segar",
+        imageUrl: "https://tastyfruit.com/jus-jeruk.jpg",
+        nutrition: {
+          energi: "45 kcal",
+          vitamin_c: "50mg",
+        },
       },
     }),
   ]);
@@ -53,9 +59,10 @@ async function main() {
         ],
         instructions:
           "1. Blender semua buah dengan susu almond\n2. Tuang ke dalam bowl\n3. Tambahkan topping sesuai selera",
-        cookingTime: 15,
-        servings: 2,
+        cookingTime: "15",
+        servings: "2",
         difficulty: "Easy",
+        author: "Admin TastyFruit",
         isPublished: true,
       },
     }),
@@ -73,9 +80,10 @@ async function main() {
         ],
         instructions:
           "1. Potong semua buah dadu\n2. Campur madu dengan perasan jeruk nipis\n3. Siram dressing ke atas buah",
-        cookingTime: 20,
-        servings: 4,
+        cookingTime: "20",
+        servings: "4",
         difficulty: "Easy",
+        author: "Admin TastyFruit",
         isPublished: true,
       },
     }),
@@ -109,19 +117,8 @@ async function main() {
     }),
   ]);
 
-  // Seed Users
-  const users = await Promise.all([
-    prisma.user.create({
-      data: {
-        email: "admin@tastyfruit.com",
-        name: "Admin TastyFruit",
-        role: "admin",
-      },
-    }),
-  ]);
-
   console.log("Seed data created successfully!");
-  console.log({ products, recipes, publications, users });
+  console.log({ products, recipes, publications });
 }
 
 main()

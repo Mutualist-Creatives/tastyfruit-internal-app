@@ -5,20 +5,22 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
-import { storage } from "@/lib/supabase/storage";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import { toast } from "sonner";
+import { usePublication, useUpdatePublication } from "@/lib/hooks";
+import { uploadApi } from "@/lib/api-client";
 
 export default function EditPublikasiPage() {
   const router = useRouter();
   const params = useParams();
   const publicationId = params.id as string;
 
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(true);
-  const [apiError, setApiError] = useState<string>("");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const { data, isLoading, error } = usePublication(publicationId);
+  const updatePublication = useUpdatePublication();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -30,35 +32,22 @@ export default function EditPublikasiPage() {
     isPublished: false,
   });
 
+  // Populate form when data loads
   useEffect(() => {
-    fetchPublication();
-  }, [publicationId]);
-
-  const fetchPublication = async () => {
-    try {
-      const response = await fetch(`/api/publications/${publicationId}`);
-      if (response.ok) {
-        const publication = await response.json();
-        setFormData({
-          title: publication.title,
-          content: publication.content,
-          excerpt: publication.excerpt || "",
-          author: publication.author,
-          category: publication.category,
-          imageUrl: publication.imageUrl || "",
-          isPublished: publication.isPublished,
-        });
-        setCurrentImageUrl(publication.imageUrl || "");
-      } else {
-        setApiError("Publikasi tidak ditemukan");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setApiError("Gagal memuat data publikasi");
-    } finally {
-      setFetchLoading(false);
+    if (data?.data) {
+      const publication = data.data;
+      setFormData({
+        title: publication.title,
+        content: publication.content,
+        excerpt: publication.excerpt || "",
+        author: publication.author,
+        category: publication.category,
+        imageUrl: publication.imageUrl || "",
+        isPublished: publication.isPublished,
+      });
+      setCurrentImageUrl(publication.imageUrl || "");
     }
-  };
+  }, [data]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -77,65 +66,60 @@ export default function EditPublikasiPage() {
   };
 
   const handleFileSelect = (file: File) => {
-    setUploadedFile(file);
+    // Store file temporarily, upload will happen on submit
+    setSelectedFile(file);
+    // Show preview using local URL
+    setCurrentImageUrl(URL.createObjectURL(file));
   };
 
   const handleFileRemove = () => {
-    setUploadedFile(null);
-    setFormData({ ...formData, imageUrl: currentImageUrl });
+    setSelectedFile(null);
+    setFormData({ ...formData, imageUrl: "" });
+    setCurrentImageUrl("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setApiError("");
 
     try {
       let imageUrl = formData.imageUrl;
 
-      // Upload file if selected
-      if (uploadedFile) {
+      // Upload file if a new file was selected
+      if (selectedFile) {
         setUploadLoading(true);
         try {
-          imageUrl = await storage.uploadPublicationImage(
-            uploadedFile,
-            publicationId
-          );
+          const result = await uploadApi.uploadImage(selectedFile);
+          imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
-          setApiError("Gagal mengupload gambar");
-          return;
-        } finally {
+          toast.error("Gagal mengupload gambar");
           setUploadLoading(false);
+          return;
         }
+        setUploadLoading(false);
       }
 
-      const response = await fetch(`/api/publications/${publicationId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          imageUrl,
-        }),
+      await updatePublication.mutateAsync({
+        id: publicationId,
+        data: { ...formData, imageUrl },
       });
-
-      if (response.ok) {
-        router.push("/publikasi");
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.error || "Gagal mengupdate publikasi");
-      }
+      toast.success("Publikasi berhasil diperbarui");
+      router.push("/publikasi");
     } catch (error) {
       console.error("Error:", error);
-      setApiError("Terjadi kesalahan");
-    } finally {
-      setLoading(false);
+      toast.error("Gagal mengupdate publikasi");
     }
   };
 
-  if (fetchLoading) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Publikasi tidak ditemukan</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
@@ -146,27 +130,23 @@ export default function EditPublikasiPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href="/publikasi"
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
+          <ArrowLeft className="h-6 w-6" />
+          <span className="font-medium">Kembali</span>
         </Link>
-        <h1 className="font-heading text-3xl font-bold text-slate-800">
-          Edit Publikasi
-        </h1>
+        <div className="w-px h-10 bg-slate-300 mx-2"></div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Edit Publikasi</h1>
+          <p className="text-slate-600 mt-1">Perbarui informasi publikasi</p>
+        </div>
       </div>
 
       {/* Form */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        {apiError && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {apiError}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -264,6 +244,11 @@ export default function EditPublikasiPage() {
               onFileRemove={handleFileRemove}
               currentImageUrl={currentImageUrl}
             />
+            {selectedFile && (
+              <p className="mt-1 text-xs text-blue-600">
+                File baru akan diupload saat submit
+              </p>
+            )}
           </div>
 
           {/* Publish Status */}
@@ -291,12 +276,12 @@ export default function EditPublikasiPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading || uploadLoading}
+              disabled={updatePublication.isPending || uploadLoading}
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploadLoading
                 ? "Mengupload..."
-                : loading
+                : updatePublication.isPending
                 ? "Menyimpan..."
                 : "Update Publikasi"}
             </button>

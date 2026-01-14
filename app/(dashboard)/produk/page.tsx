@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect, Fragment } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import SearchFilter from "@/components/ui/search-filter";
 import Pagination from "@/components/ui/pagination";
-import FruitTypesAccordion from "@/components/fruit-types-accordion";
+import { useProducts, useDeleteProduct } from "@/lib/hooks";
+import { toast } from "sonner";
+import AlertDialog from "@/components/ui/alert-dialog";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface FruitType {
   id: string;
@@ -19,87 +23,68 @@ interface Product {
   id: string;
   name: string;
   description: string | null;
-  price: number;
-  category: string;
   imageUrl: string | null;
-  stock: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   fruitTypes?: FruitType[];
 }
 
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  totalCount: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
 export default function ProdukPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user } = useAuth();
+
+  if (user && user.role !== "admin") {
+    router.push("/dashboard");
+    return null;
+  }
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     category: "",
     isActive: "",
   });
 
-  useEffect(() => {
-    fetchProducts();
-  }, [currentPage, searchTerm, filters]);
+  const { data, isLoading, error } = useProducts({
+    page: currentPage,
+    limit: 10,
+    search: searchTerm,
+  });
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "10",
-        search: searchTerm,
-        category: filters.category,
-        isActive: filters.isActive,
-      });
+  const deleteProduct = useDeleteProduct();
 
-      const response = await fetch(`/api/products?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-    } finally {
-      setLoading(false);
-    }
+  const products = (data?.data || []) as unknown as Product[];
+  const pagination = data?.pagination;
+
+  const handleDeleteClick = (id: string) => {
+    setItemToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
       try {
-        const response = await fetch(`/api/products/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          fetchProducts(); // Refresh data after delete
-        }
-      } catch (error) {
-        console.error("Failed to delete product:", error);
+        await deleteProduct.mutateAsync(itemToDelete);
+        toast.success("Produk berhasil dihapus");
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      } catch {
+        toast.error("Gagal menghapus produk");
       }
     }
   };
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
@@ -133,7 +118,15 @@ export default function ProdukPage() {
     },
   ];
 
-  if (loading) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error loading products</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
@@ -148,13 +141,15 @@ export default function ProdukPage() {
         <h1 className="font-heading text-3xl font-bold text-slate-800">
           Manajemen Produk
         </h1>
-        <Link
-          href="/produk/tambah"
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Tambah Produk
-        </Link>
+        {user?.role === "admin" && (
+          <Link
+            href="/produk/tambah"
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Produk
+          </Link>
+        )}
       </div>
 
       {/* Search & Filter */}
@@ -177,107 +172,74 @@ export default function ProdukPage() {
                 Produk
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Kategori
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Harga
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Stok
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Aksi
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
             {products.map((product) => (
-              <Fragment key={product.id}>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        {product.imageUrl ? (
-                          <img
-                            className="h-10 w-10 rounded-lg object-cover"
-                            src={product.imageUrl}
-                            alt={product.name}
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-lg bg-slate-200 flex items-center justify-center">
-                            <span className="text-slate-500 text-xs">
-                              No Image
-                            </span>
-                          </div>
-                        )}
+              <tr key={product.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 flex-shrink-0">
+                      {product.imageUrl ? (
+                        <img
+                          className="h-10 w-10 rounded-lg object-cover"
+                          src={product.imageUrl}
+                          alt={product.name}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-slate-200 flex items-center justify-center">
+                          <span className="text-slate-500 text-xs">
+                            No Image
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-slate-900">
+                        {product.name}
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-slate-900">
-                          {product.name}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          {product.description}
-                        </div>
+                      <div className="text-sm text-slate-500">
+                        {product.description}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {product.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    Rp {product.price.toLocaleString("id-ID")}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {product.stock}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        product.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      product.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {product.isActive ? "Aktif" : "Nonaktif"}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/produk/edit/${product.id}`}
+                      className="text-primary hover:text-blue-700"
                     >
-                      {product.isActive ? "Aktif" : "Nonaktif"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/produk/edit/${product.id}`}
-                        className="text-primary hover:text-blue-700"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                {/* Fruit Types Accordion Row */}
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 bg-slate-50">
-                    <FruitTypesAccordion
-                      productId={product.id}
-                      productName={product.name}
-                      fruitTypes={product.fruitTypes || []}
-                      onUpdate={fetchProducts}
-                    />
-                  </td>
-                </tr>
-              </Fragment>
+                      <Edit className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteClick(product.id)}
+                      className="text-red-600 hover:text-red-800"
+                      disabled={deleteProduct.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
 
-        {products.length === 0 && !loading && (
+        {products.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <div className="text-slate-500">
               {searchTerm || Object.values(filters).some((f) => f)
@@ -298,6 +260,17 @@ export default function ProdukPage() {
           itemsPerPage={pagination.limit}
         />
       )}
+
+      <AlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Produk"
+        description="Apakah Anda yakin ingin menghapus produk ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmLabel="Hapus"
+        isDestructive={true}
+        isLoading={deleteProduct.isPending}
+      />
     </div>
   );
 }

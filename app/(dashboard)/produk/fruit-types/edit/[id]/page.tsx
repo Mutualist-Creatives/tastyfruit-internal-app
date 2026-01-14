@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 import FileUpload from "@/components/ui/file-upload";
-import { storage } from "@/lib/supabase/storage";
+import { uploadApi, fruitTypesApi } from "@/lib/api-client";
 import TiptapEditor from "@/components/ui/tiptap-editor";
 
 const fruitTypeSchema = z.object({
@@ -44,17 +44,19 @@ export default function EditFruitTypePage() {
   const fetchFruitType = async () => {
     try {
       setFetching(true);
-      const response = await fetch(`/api/fruit-types/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch fruit type");
+      const response = await fruitTypesApi.getById(params.id as string);
 
-      const data = await response.json();
-      reset({
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-      });
-      setCurrentImage(data.image);
-      setProductName(data.product?.name || "");
+      if (response.success) {
+        const data = response.data;
+        reset({
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+        });
+        setCurrentImage(data.image);
+        // Note: product name fetching might need adjustment depending on API response
+        // Assuming data includes simple product info or we don't display it here if complex
+      }
     } catch (error) {
       console.error("Error fetching fruit type:", error);
       toast.error("Gagal memuat data fruit type");
@@ -71,26 +73,17 @@ export default function EditFruitTypePage() {
 
       // Upload new image if provided
       if (imageFile) {
-        imageUrl = await storage.uploadFile(
-          imageFile,
-          "tastyfruit-uploads",
-          `fruit-types/${params.id}-${imageFile.name}`
-        );
+        const result = await uploadApi.uploadImage(imageFile);
+        imageUrl = result.data.url;
       }
 
-      const response = await fetch(`/api/fruit-types/${params.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          image: imageUrl,
-        }),
+      const descriptionVal = data.description ?? undefined;
+
+      await fruitTypesApi.update(params.id as string, {
+        ...data,
+        description: descriptionVal,
+        image: imageUrl || "",
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update fruit type");
-      }
 
       toast.success("Fruit type berhasil diupdate");
       router.push("/produk");

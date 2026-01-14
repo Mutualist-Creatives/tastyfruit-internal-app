@@ -1,80 +1,75 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Search, Edit, Trash2, Eye } from "lucide-react";
 import Link from "next/link";
-
-// Mock data untuk sementara
-const mockPublications = [
-  {
-    id: "1",
-    title: "Manfaat Buah Naga untuk Kesehatan",
-    excerpt:
-      "Buah naga kaya akan antioksidan dan vitamin C yang baik untuk sistem imun tubuh.",
-    author: "Admin TastyFruit",
-    category: "Kesehatan",
-    isPublished: true,
-    publishedAt: "2024-01-15",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    title: "Tips Memilih Buah Segar di Pasar",
-    excerpt:
-      "Panduan lengkap untuk memilih buah-buahan segar dengan kualitas terbaik.",
-    author: "Admin TastyFruit",
-    category: "Tips",
-    isPublished: false,
-    publishedAt: null,
-    createdAt: "2024-01-14",
-  },
-];
+import {
+  usePublications,
+  useDeletePublication,
+  useUpdatePublication,
+} from "@/lib/hooks";
+import { toast } from "sonner";
+import AlertDialog from "@/components/ui/alert-dialog";
+import Switch from "@/components/ui/switch";
 
 export default function PublikasiPage() {
-  const [publications, setPublications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPublications();
-  }, []);
+  const { data, isLoading, error } = usePublications({
+    page: currentPage,
+    limit: 10,
+    search: searchTerm,
+  });
 
-  const fetchPublications = async () => {
-    try {
-      const response = await fetch("/api/publications");
-      if (response.ok) {
-        const data = await response.json();
-        setPublications(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch publications:", error);
-    } finally {
-      setLoading(false);
-    }
+  const deletePublication = useDeletePublication();
+  const updatePublication = useUpdatePublication();
+
+  const publications = data?.data || [];
+
+  const handleDeleteClick = (id: string) => {
+    setItemToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus publikasi ini?")) {
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
       try {
-        const response = await fetch(`/api/publications/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          setPublications(publications.filter((p) => p.id !== id));
-        }
-      } catch (error) {
-        console.error("Failed to delete publication:", error);
+        await deletePublication.mutateAsync(itemToDelete);
+        toast.success("Publikasi berhasil dihapus");
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      } catch {
+        toast.error("Gagal menghapus publikasi");
       }
     }
   };
 
-  const filteredPublications = publications.filter(
-    (pub) =>
-      pub.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pub.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    try {
+      await updatePublication.mutateAsync({
+        id,
+        data: { isPublished: currentStatus },
+      });
+      toast.success(
+        `Publikasi berhasil ${currentStatus ? "dipublikasikan" : "diarsipkan"}`
+      );
+    } catch {
+      toast.error("Gagal mengubah status publikasi");
+    }
+  };
 
-  if (loading) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error loading publications</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
@@ -112,7 +107,7 @@ export default function PublikasiPage() {
 
       {/* Publications Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPublications.map((publication) => (
+        {publications.map((publication) => (
           <div
             key={publication.id}
             className="bg-white rounded-lg shadow-sm border overflow-hidden"
@@ -144,9 +139,9 @@ export default function PublikasiPage() {
               <div className="text-xs text-slate-500 mb-4">
                 <p>Oleh: {publication.author}</p>
                 <p>
-                  {publication.isPublished
+                  {publication.isPublished && publication.publishedAt
                     ? `Dipublikasi: ${new Date(
-                        publication.publishedAt!
+                        publication.publishedAt
                       ).toLocaleDateString("id-ID")}`
                     : `Dibuat: ${new Date(
                         publication.createdAt
@@ -154,11 +149,17 @@ export default function PublikasiPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-auto">
+                <Switch
+                  checked={publication.isPublished}
+                  onChange={(checked) =>
+                    handleTogglePublish(publication.id, checked)
+                  }
+                  label={publication.isPublished ? "Published" : "Draft"}
+                  disabled={updatePublication.isPending}
+                />
+
                 <div className="flex items-center gap-2">
-                  <button className="text-slate-600 hover:text-slate-800">
-                    <Eye className="h-4 w-4" />
-                  </button>
                   <Link
                     href={`/publikasi/edit/${publication.id}`}
                     className="text-primary hover:text-blue-700"
@@ -166,8 +167,9 @@ export default function PublikasiPage() {
                     <Edit className="h-4 w-4" />
                   </Link>
                   <button
-                    onClick={() => handleDelete(publication.id)}
+                    onClick={() => handleDeleteClick(publication.id)}
                     className="text-red-600 hover:text-red-800"
+                    disabled={deletePublication.isPending}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -178,7 +180,7 @@ export default function PublikasiPage() {
         ))}
       </div>
 
-      {filteredPublications.length === 0 && (
+      {publications.length === 0 && (
         <div className="text-center py-12">
           <div className="text-slate-500">
             {searchTerm
@@ -187,6 +189,17 @@ export default function PublikasiPage() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Publikasi"
+        description="Apakah Anda yakin ingin menghapus publikasi ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmLabel="Hapus"
+        isDestructive={true}
+        isLoading={deletePublication.isPending}
+      />
     </div>
   );
 }

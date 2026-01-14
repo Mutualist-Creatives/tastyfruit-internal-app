@@ -2,41 +2,50 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
-import { userSchema, type UserFormData } from "@/lib/validations/user";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { usersApi } from "@/lib/api-client";
+import { useAuth } from "@/components/auth/auth-provider";
 
-export default function TambahUserPage() {
+const createUserSchema = z.object({
+  name: z.string().min(1, "Nama wajib diisi"),
+  email: z.string().email("Email tidak valid"),
+  password: z.string().min(6, "Password minimal 6 karakter"),
+  role: z.enum(["admin", "user", "editor"]).default("user"),
+});
+
+type CreateUserFormData = z.infer<typeof createUserSchema>;
+
+export default function AddUserPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  // Redirect if not admin
+  if (user && user.role !== "admin") {
+    router.push("/dashboard");
+    return null;
+  }
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+  } = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
-      role: "editor",
+      role: "user",
     },
   });
 
-  const onSubmit = async (data: UserFormData) => {
+  const onSubmit = async (data: CreateUserFormData) => {
     try {
       setLoading(true);
-
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create user");
-      }
-
+      await usersApi.create(data);
       toast.success("User berhasil ditambahkan");
       router.push("/users");
     } catch (error: any) {
@@ -48,117 +57,111 @@ export default function TambahUserPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Tambah User Baru</h1>
-        <p className="text-gray-600 mt-1">Buat akun admin atau editor baru</p>
+    <div className="max-w-2xl space-y-6">
+      <div className="flex items-center gap-4">
+        <Link
+          href="/users"
+          className="rounded-full p-2 hover:bg-slate-100 transition-colors"
+        >
+          <ChevronLeft className="h-6 w-6 text-slate-600" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Tambah User</h1>
+          <p className="text-slate-600">Buat akun pengguna baru</p>
+        </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-lg shadow p-6 space-y-6"
-      >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nama Lengkap *
-          </label>
-          <input
-            type="text"
-            {...register("name")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="John Doe"
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
+      <div className="bg-white rounded-lg shadow border p-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nama Lengkap
+              </label>
+              <input
+                type="text"
+                {...register("name")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Masukkan nama lengkap"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email *
-          </label>
-          <input
-            type="email"
-            {...register("email")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="john@tastyfruit.com"
-          />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                {...register("email")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="nama@email.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Password *
-          </label>
-          <input
-            type="password"
-            {...register("password")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="Minimal 8 karakter"
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.password.message}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-gray-500">
-            Password harus minimal 8 karakter
-          </p>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                {...register("password")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Minimal 6 karakter"
+              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Role *
-          </label>
-          <select
-            {...register("role")}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-          >
-            <option value="admin">Admin - Full access</option>
-            <option value="editor">Editor - Can create & edit</option>
-            <option value="viewer">Viewer - Read only</option>
-          </select>
-          {errors.role && (
-            <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Role
+              </label>
+              <select
+                {...register("role")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
+          </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-medium text-blue-900 mb-2">Role Permissions:</h3>
-          <ul className="space-y-1 text-sm text-blue-800">
-            <li>
-              • <strong>Admin:</strong> Full access - manage users, products,
-              recipes, publications
-            </li>
-            <li>
-              • <strong>Editor:</strong> Can create and edit content, cannot
-              manage users
-            </li>
-            <li>
-              • <strong>Viewer:</strong> Read-only access, cannot create or edit
-            </li>
-          </ul>
-        </div>
-
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Menyimpan..." : "Simpan User"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Batal
-          </button>
-        </div>
-      </form>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <Link
+              href="/users"
+              className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </Link>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Menyimpan..." : "Simpan User"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

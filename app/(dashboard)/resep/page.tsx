@@ -1,105 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Search, Edit, Trash2, Clock, Users } from "lucide-react";
 import Link from "next/link";
-
-// Mock data untuk sementara
-const mockRecipes = [
-  {
-    id: "1",
-    title: "Smoothie Bowl Mangga Naga",
-    description:
-      "Smoothie bowl segar dengan kombinasi mangga dan buah naga yang kaya nutrisi.",
-    cookingTime: 15,
-    servings: 2,
-    difficulty: "Easy",
-    imageUrl: null,
-    isPublished: true,
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    title: "Salad Buah Tropis",
-    description: "Salad buah segar dengan dressing madu dan jeruk nipis.",
-    cookingTime: 20,
-    servings: 4,
-    difficulty: "Easy",
-    imageUrl: null,
-    isPublished: false,
-    createdAt: "2024-01-14",
-  },
-  {
-    id: "3",
-    title: "Jus Detox Hijau",
-    description: "Jus sehat dengan kombinasi sayuran hijau dan buah-buahan.",
-    cookingTime: 10,
-    servings: 1,
-    difficulty: "Medium",
-    imageUrl: null,
-    isPublished: true,
-    createdAt: "2024-01-13",
-  },
-];
+import { useRecipes, useDeleteRecipe, useUpdateRecipe } from "@/lib/hooks";
+import { toast } from "sonner";
+import AlertDialog from "@/components/ui/alert-dialog";
+import Switch from "@/components/ui/switch";
 
 export default function ResepPage() {
-  const [recipes, setRecipes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, []);
+  const { data, isLoading, error } = useRecipes({
+    page: currentPage,
+    limit: 10,
+    search: searchTerm,
+  });
 
-  const fetchRecipes = async () => {
-    try {
-      const response = await fetch("/api/recipes");
-      if (response.ok) {
-        const data = await response.json();
-        setRecipes(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch recipes:", error);
-    } finally {
-      setLoading(false);
-    }
+  const deleteRecipe = useDeleteRecipe();
+  const updateRecipe = useUpdateRecipe();
+
+  const recipes = data?.data || [];
+
+  const handleDeleteClick = (id: string) => {
+    setItemToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus resep ini?")) {
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
       try {
-        const response = await fetch(`/api/recipes/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          setRecipes(recipes.filter((r) => r.id !== id));
-        }
-      } catch (error) {
-        console.error("Failed to delete recipe:", error);
+        await deleteRecipe.mutateAsync(itemToDelete);
+        toast.success("Resep berhasil dihapus");
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      } catch {
+        toast.error("Gagal menghapus resep");
       }
     }
   };
 
-  const filteredRecipes = recipes.filter(
-    (recipe) =>
-      recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      recipe.difficulty.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "Easy":
-        return "bg-green-100 text-green-800";
-      case "Medium":
-        return "bg-yellow-100 text-yellow-800";
-      case "Hard":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-slate-100 text-slate-800";
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateRecipe.mutateAsync({
+        id,
+        data: { isPublished: currentStatus },
+      });
+      toast.success(
+        `Resep berhasil ${currentStatus ? "dipublikasikan" : "diarsipkan"}`
+      );
+    } catch {
+      toast.error("Gagal mengubah status resep");
     }
   };
 
-  if (loading) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error loading recipes</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
@@ -137,7 +103,7 @@ export default function ResepPage() {
 
       {/* Recipes Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRecipes.map((recipe) => (
+        {recipes.map((recipe) => (
           <div
             key={recipe.id}
             className="bg-white rounded-lg shadow-sm border overflow-hidden"
@@ -157,13 +123,6 @@ export default function ResepPage() {
 
             <div className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(
-                    recipe.difficulty
-                  )}`}
-                >
-                  {recipe.difficulty}
-                </span>
                 <span
                   className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                     recipe.isPublished
@@ -186,11 +145,11 @@ export default function ResepPage() {
               <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  <span>{recipe.cookingTime} menit</span>
+                  <span>{recipe.cookingTime || "-"}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  <span>{recipe.servings} porsi</span>
+                  <span>{recipe.servings || "-"} porsi</span>
                 </div>
               </div>
 
@@ -201,7 +160,16 @@ export default function ResepPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-auto">
+                <Switch
+                  checked={recipe.isPublished}
+                  onChange={(checked) =>
+                    handleTogglePublish(recipe.id, checked)
+                  }
+                  label={recipe.isPublished ? "Published" : "Draft"}
+                  disabled={updateRecipe.isPending}
+                />
+
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/resep/edit/${recipe.id}`}
@@ -210,8 +178,9 @@ export default function ResepPage() {
                     <Edit className="h-4 w-4" />
                   </Link>
                   <button
-                    onClick={() => handleDelete(recipe.id)}
+                    onClick={() => handleDeleteClick(recipe.id)}
                     className="text-red-600 hover:text-red-800"
+                    disabled={deleteRecipe.isPending}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -222,13 +191,24 @@ export default function ResepPage() {
         ))}
       </div>
 
-      {filteredRecipes.length === 0 && (
+      {recipes.length === 0 && (
         <div className="text-center py-12">
           <div className="text-slate-500">
             {searchTerm ? "Tidak ada resep yang ditemukan" : "Belum ada resep"}
           </div>
         </div>
       )}
+
+      <AlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Resep"
+        description="Apakah Anda yakin ingin menghapus resep ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmLabel="Hapus"
+        isDestructive={true}
+        isLoading={deleteRecipe.isPending}
+      />
     </div>
   );
 }
