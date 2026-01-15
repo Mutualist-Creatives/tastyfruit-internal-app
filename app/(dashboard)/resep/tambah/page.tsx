@@ -118,10 +118,7 @@ export default function TambahResepPage() {
       if (uploadedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(
-            uploadedFile,
-            "main/recipe"
-          );
+          const result = await uploadApi.uploadImage(uploadedFile, "recipe");
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);

@@ -77,7 +77,7 @@ export default function TambahPublikasiPage() {
         try {
           const result = await uploadApi.uploadImage(
             uploadedFile,
-            "main/publication"
+            "publication"
           );
           imageUrl = result.data.url;
         } catch (uploadError) {

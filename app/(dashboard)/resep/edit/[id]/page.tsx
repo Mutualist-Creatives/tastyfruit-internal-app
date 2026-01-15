@@ -157,10 +157,7 @@ export default function EditResepPage() {
       if (selectedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(
-            selectedFile,
-            "main/recipe"
-          );
+          const result = await uploadApi.uploadImage(selectedFile, "recipe");
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);

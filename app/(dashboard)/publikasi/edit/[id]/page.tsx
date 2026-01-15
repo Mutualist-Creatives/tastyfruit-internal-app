@@ -101,7 +101,7 @@ export default function EditPublikasiPage() {
         try {
           const result = await uploadApi.uploadImage(
             selectedFile,
-            "main/publication"
+            "publication"
           );
           imageUrl = result.data.url;
         } catch (uploadError) {
