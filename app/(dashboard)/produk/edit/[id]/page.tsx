@@ -14,6 +14,7 @@ import { use } from "react";
 import { useProduct, useUpdateProduct } from "@/lib/hooks";
 import { uploadApi } from "@/lib/api-client";
 import { useAuth } from "@/components/auth/auth-provider";
+import { FormPageSkeleton } from "@/components/form-page-skeleton";
 
 export default function EditProdukPage({
   params,
@@ -25,10 +26,7 @@ export default function EditProdukPage({
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
-  if (user && user.role !== "admin") {
-    router.push("/dashboard");
-    return null;
-  }
+  // Moved check below hooks
 
   const { data, isLoading, error } = useProduct(id);
   const updateProduct = useUpdateProduct();
@@ -77,6 +75,11 @@ export default function EditProdukPage({
       });
     }
   }, [data, reset]);
+
+  if (user && user.role !== "admin") {
+    router.push("/dashboard");
+    return null;
+  }
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -137,11 +140,7 @@ export default function EditProdukPage({
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    );
+    return <FormPageSkeleton fieldCount={3} hasImageUpload={true} />;
   }
 
   return (

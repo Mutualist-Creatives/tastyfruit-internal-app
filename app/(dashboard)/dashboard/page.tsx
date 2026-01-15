@@ -3,20 +3,23 @@
 import StatCard from "@/components/stat-card";
 import ContentGrowthChart from "@/components/content-growth-chart";
 import RecentActivity from "@/components/recent-activity";
-import { Package, FileText, CookingPot } from "lucide-react";
+import { Package, FileText, CookingPot, Users } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks";
+import { ErrorState } from "@/components/error-states";
+import ErrorBoundary from "@/components/error-boundary";
+import { Badge } from "@/components/ui/badge";
+import { Activity } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useDashboardStats();
+  const { data, isLoading, error, refetch } = useDashboardStats();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === "admin";
 
   if (isLoading) {
-    return (
-      <ErrorState
-        title="Gagal Memuat Dashboard"
-        message="Tidak dapat memuat data dashboard. Silakan coba lagi."
-        onRetry={fetchDashboardStats}
-      />
-    );
+    return <DashboardSkeleton isAdmin={isAdmin} />;
   }
 
   if (error || !data) {
@@ -24,19 +27,20 @@ export default function DashboardPage() {
       <ErrorState
         title="Data Tidak Tersedia"
         message="Data dashboard tidak tersedia saat ini."
-        onRetry={fetchDashboardStats}
+        onRetry={refetch}
       />
     );
   }
 
   const stats = data.data;
 
-  const dashboardStats = [
+  // Stats for all users (Publications and Recipes)
+  const baseStats = [
     {
-      title: "Total Produk",
-      value: (stats.products || 0).toString(),
-      icon: Package,
-      subtitle: "produk terdaftar",
+      title: "Total Publikasi",
+      value: (stats.publications || 0).toString(),
+      icon: FileText,
+      subtitle: "publikasi dibuat",
     },
     {
       title: "Total Resep",
@@ -44,13 +48,26 @@ export default function DashboardPage() {
       icon: CookingPot,
       subtitle: "resep tersedia",
     },
-    {
-      title: "Total Publikasi",
-      value: (stats.publications || 0).toString(),
-      icon: FileText,
-      subtitle: "publikasi dibuat",
-    },
   ];
+
+  // Additional stats for admin (Products and Users)
+  const adminStats = [
+    {
+      title: "Total Produk",
+      value: (stats.products || 0).toString(),
+      icon: Package,
+      subtitle: "produk terdaftar",
+    },
+    {
+      title: "Total Users",
+      value: (stats.users || 0).toString(),
+      icon: Users,
+      subtitle: "pengguna terdaftar",
+    },
+    ...baseStats,
+  ];
+
+  const dashboardStats = isAdmin ? adminStats : baseStats;
 
   return (
     <ErrorBoundary>
@@ -72,35 +89,52 @@ export default function DashboardPage() {
           </Badge>
         </div>
 
-      {/* Bagian Kartu Statistik Utama */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {dashboardStats.map((stat) => (
-          <StatCard
-            key={stat.title}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            subtitle={stat.subtitle}
-          />
-        ))}
-      </div>
-
-      {/* Bagian Utama dengan Grid Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Kolom kiri untuk Grafik, memakan 2 bagian */}
-        <div className="lg:col-span-2">
-          <SalesChart monthlyData={{ products: [], recipes: [] }} />
+        {/* Bagian Kartu Statistik Utama */}
+        <div
+          className={`grid grid-cols-1 gap-6 md:grid-cols-2 ${
+            isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-2"
+          }`}
+        >
+          {dashboardStats.map((stat) => (
+            <StatCard
+              key={stat.title}
+              title={stat.title}
+              value={stat.value}
+              icon={stat.icon}
+              subtitle={stat.subtitle}
+            />
+          ))}
         </div>
 
-        {/* Kolom kanan untuk Aktivitas, memakan 1 bagian */}
-        <div className="lg:col-span-1">
-          <RecentActivity
-            recentActivity={{
-              newProducts: 0,
-              newRecipes: 0,
-              newPublications: 0,
-            }}
-          />
+        {/* Bagian Utama dengan Grid Layout */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Kolom kiri untuk Grafik, memakan 2 bagian */}
+          <div className="lg:col-span-2">
+            <ContentGrowthChart
+              monthlyData={
+                stats.monthlyData || {
+                  products: [],
+                  recipes: [],
+                  publications: [],
+                }
+              }
+              isAdmin={isAdmin}
+            />
+          </div>
+
+          {/* Kolom kanan untuk Aktivitas, memakan 1 bagian */}
+          <div className="lg:col-span-1">
+            <RecentActivity
+              recentActivity={
+                stats.recentActivity || {
+                  newProducts: 0,
+                  newRecipes: 0,
+                  newPublications: 0,
+                }
+              }
+              isAdmin={isAdmin}
+            />
+          </div>
         </div>
       </div>
     </ErrorBoundary>

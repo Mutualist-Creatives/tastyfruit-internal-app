@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Image as ImageIcon } from "lucide-react";
+import { X, Image as ImageIcon, Loader2, AlertCircle } from "lucide-react";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -12,6 +12,8 @@ interface FileUploadProps {
   className?: string;
   previewUrl?: string; // Compatibility
   error?: string; // Compatibility
+  isUploading?: boolean;
+  uploadProgress?: number;
 }
 
 export default function FileUpload({

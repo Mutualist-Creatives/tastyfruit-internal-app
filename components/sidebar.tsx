@@ -12,67 +12,22 @@ import {
   User,
   Users,
   LogOut,
-  Apple,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-
-const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Produk",
-    url: "/produk",
-    icon: Package,
-  },
-  {
-    title: "Artikel",
-    icon: FileText,
-    items: [
-      {
-        title: "Publikasi",
-        url: "/publikasi",
-        icon: FileText,
-      },
-      {
-        title: "Resep",
-        url: "/resep",
-        icon: CookingPot,
-      },
-    ],
-  },
-  {
-    title: "Users",
-    url: "/users",
-    icon: Users,
-  },
-];
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const { state } = useSidebar();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [artikelOpen, setArtikelOpen] = useState(
     pathname.startsWith("/publikasi") || pathname.startsWith("/resep")
@@ -81,22 +36,30 @@ export default function AppSidebar() {
   const isArtikelActive =
     pathname.startsWith("/publikasi") || pathname.startsWith("/resep");
 
+  // Sync accordion with sidebar state - close when sidebar is collapsed
+  useEffect(() => {
+    if (state === "collapsed") {
+      setArtikelOpen(false);
+    } else if (isArtikelActive) {
+      // Re-open if on artikel page and sidebar expands
+      setArtikelOpen(true);
+    }
+  }, [state, isArtikelActive]);
+
   const handleLogout = () => {
     logout();
     setLogoutDialogOpen(false);
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 flex-col border-r bg-slate-50">
-      <div className="flex h-full flex-col p-4">
-        {/* Bagian Logo */}
-        <div className="mb-8 p-4">
-          <h1 className="text-2xl font-bold text-slate-800">TastyFruit</h1>
-          <p className="text-sm text-slate-500">Admin Panel</p>
-        </div>
+    <Sidebar>
+      <SidebarHeader className="p-4">
+        <h1 className="text-2xl font-bold text-slate-800">TastyFruit</h1>
+        <p className="text-sm text-slate-500">Admin Panel</p>
+      </SidebarHeader>
 
-        {/* Bagian Navigasi Utama */}
-        <nav className="flex-grow">
+      <SidebarContent className="flex-grow px-4">
+        <nav>
           <ul className="space-y-1">
             {/* Dashboard */}
             <li>
@@ -200,29 +163,28 @@ export default function AppSidebar() {
             )}
           </ul>
         </nav>
+      </SidebarContent>
 
-        {/* Bagian Logout */}
-        <div className="space-y-1">
-          <Link
-            href="/profile"
-            className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
-              pathname.startsWith("/profile")
-                ? "bg-blue-100 font-bold text-primary"
-                : ""
-            }`}
-          >
-            <User className="h-5 w-5" />
-            Profile
-          </Link>
-          <button
-            onClick={() => setLogoutDialogOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900"
-          >
-            <LogOut className="h-5 w-5" />
-            Logout
-          </button>
-        </div>
-      </div>
+      <SidebarFooter className="space-y-1 px-4 pb-4">
+        <Link
+          href="/profile"
+          className={`flex items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900 ${
+            pathname.startsWith("/profile")
+              ? "bg-blue-100 font-bold text-primary"
+              : ""
+          }`}
+        >
+          <User className="h-5 w-5" />
+          Profile
+        </Link>
+        <button
+          onClick={() => setLogoutDialogOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-600 transition-all hover:bg-slate-200 hover:text-slate-900"
+        >
+          <LogOut className="h-5 w-5" />
+          Logout
+        </button>
+      </SidebarFooter>
 
       <AlertDialog
         isOpen={logoutDialogOpen}
@@ -234,6 +196,6 @@ export default function AppSidebar() {
         cancelLabel="Batal"
         isDestructive={true}
       />
-    </aside>
+    </Sidebar>
   );
 }

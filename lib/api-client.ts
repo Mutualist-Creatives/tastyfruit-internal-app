@@ -458,6 +458,16 @@ export interface DashboardStats {
   recipes: number;
   publications: number;
   users: number;
+  recentActivity?: {
+    newProducts: number;
+    newRecipes: number;
+    newPublications: number;
+  };
+  monthlyData?: {
+    products: Array<{ count: number }>;
+    recipes: Array<{ count: number }>;
+    publications: Array<{ count: number }>;
+  };
 }
 
 export const dashboardApi = {
@@ -471,11 +481,15 @@ export const dashboardApi = {
 // ============================================
 export const uploadApi = {
   uploadImage: async (
-    file: File
+    file: File,
+    folder?: string
   ): Promise<{ success: boolean; data: { url: string } }> => {
     const token = getToken();
     const formData = new FormData();
     formData.append("file", file);
+    if (folder) {
+      formData.append("folder", folder);
+    }
 
     const response = await fetch(`${API_URL}/api/upload`, {
       method: "POST",

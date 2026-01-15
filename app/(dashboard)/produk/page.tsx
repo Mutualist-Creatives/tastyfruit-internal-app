@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -28,6 +27,7 @@ import { useProducts, useDeleteProduct } from "@/lib/hooks";
 import { toast } from "sonner";
 import AlertDialog from "@/components/ui/alert-dialog";
 import { useAuth } from "@/components/auth/auth-provider";
+import { ProductPageSkeleton } from "@/components/product-page-skeleton";
 
 interface FruitType {
   id: string;
@@ -52,11 +52,6 @@ interface Product {
 export default function ProdukPage() {
   const router = useRouter();
   const { user } = useAuth();
-
-  if (user && user.role !== "admin") {
-    router.push("/dashboard");
-    return null;
-  }
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,25 +87,10 @@ export default function ProdukPage() {
   );
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
 
-  const {
-    data: fetchedProducts,
-    loading,
-    error,
-    fetch: fetchProducts,
-  } = useFetch<Product[]>([]);
-  const { delete: deleteApi, update: updateApi } = useCrudApi();
   const [products, setProducts] = useState<Product[]>([]);
 
   /**
    * Setup drag and drop sensors with touch support
-   *
-   * PointerSensor: Handles mouse and touch drag events
-   * - activationConstraint.distance: Requires 8px movement before drag starts
-   *   This prevents accidental drags on touch devices and when clicking buttons
-   *
-   * KeyboardSensor: Enables keyboard-based drag and drop for accessibility
-   * - Users can use arrow keys to reorder items
-   * - Provides accessible alternative to mouse/touch dragging
    */
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -123,14 +103,8 @@ export default function ProdukPage() {
     })
   );
 
-  // Sync fetched products with local state
-  useEffect(() => {
-    if (fetchedProducts) {
-      setProducts(fetchedProducts);
-    }
-  }, [fetchedProducts]);
-
-  const { data, isLoading, error } = useProducts({
+  // Use the standard hook
+  const { data, isLoading, error, refetch } = useProducts({
     page: currentPage,
     limit: 10,
     search: searchTerm,
@@ -138,7 +112,19 @@ export default function ProdukPage() {
 
   const deleteProduct = useDeleteProduct();
 
-  const products = (data?.data || []) as unknown as Product[];
+  useEffect(() => {
+    if (user && user.role !== "admin") {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
+
+  // Sync fetched products with local state for DnD
+  useEffect(() => {
+    if (data?.data) {
+      setProducts(data.data as unknown as Product[]);
+    }
+  }, [data]);
+
   const pagination = data?.pagination;
 
   const handleDeleteClick = (id: string) => {
@@ -188,13 +174,6 @@ export default function ProdukPage() {
 
   /**
    * Handle drag end event for products
-   *
-   * Implements optimistic UI updates:
-   * 1. Immediately updates the UI with new order
-   * 2. Sends API request to persist the change
-   * 3. Rolls back on error (handled by API hook)
-   *
-   * This provides instant feedback to users while ensuring data consistency
    */
   const handleProductDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -209,7 +188,7 @@ export default function ProdukPage() {
     const oldIndex = products.findIndex((p) => p.id === active.id);
     const newIndex = products.findIndex((p) => p.id === over.id);
 
-    // Optimistic update: Update UI immediately before API call
+    // Optimistic update
     const newProducts = arrayMove(products, oldIndex, newIndex);
     setProducts(newProducts);
 
@@ -225,13 +204,10 @@ export default function ProdukPage() {
         throw new Error("Failed to update order");
       }
 
-      // Show success toast
-      const { toast } = await import("sonner");
       toast.success("Urutan berhasil diperbarui");
     } catch (error) {
       // Rollback on error
       setProducts(products);
-      const { toast } = await import("sonner");
       toast.error("Gagal memperbarui urutan");
     }
   };
@@ -274,13 +250,10 @@ export default function ProdukPage() {
         throw new Error("Failed to update order");
       }
 
-      // Show success toast
-      const { toast } = await import("sonner");
       toast.success("Urutan berhasil diperbarui");
     } catch (error) {
       // Rollback on error
       setProducts(products);
-      const { toast } = await import("sonner");
       toast.error("Gagal memperbarui urutan");
     }
   };
@@ -321,11 +294,7 @@ export default function ProdukPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <ProductPageSkeleton />;
   }
 
   return (
@@ -346,16 +315,16 @@ export default function ProdukPage() {
         )}
       </div>
 
-        {/* Search & Filter */}
-        <SearchFilter
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          filters={filterOptions}
-          activeFilters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={handleClearFilters}
-          placeholder="Cari produk..."
-        />
+      {/* Search & Filter */}
+      <SearchFilter
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        filters={filterOptions}
+        activeFilters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        placeholder="Cari produk..."
+      />
 
       {/* Products Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -438,35 +407,33 @@ export default function ProdukPage() {
             <div className="text-slate-500">
               {searchTerm || Object.values(filters).some((f) => f)
                 ? "Tidak ada produk yang ditemukan"
-                : "Belum ada produk"
-            }
-            description={
-              searchTerm || Object.values(filters).some((f) => f)
-                ? "Coba ubah kata kunci pencarian atau filter Anda"
-                : "Mulai dengan menambahkan produk pertama Anda"
-            }
-            action={
-              !searchTerm && !Object.values(filters).some((f) => f)
-                ? {
-                    label: "Tambah Produk Pertama",
-                    onClick: () => router.push("/produk/tambah"),
-                    icon: <Plus className="size-4 mr-2" />,
-                  }
-                : undefined
-            }
-          />
+                : "Belum ada produk"}
+            </div>
+            {!searchTerm && !Object.values(filters).some((f) => f) && (
+              <div className="mt-4">
+                <button
+                  onClick={() => router.push("/produk/tambah")}
+                  className="flex items-center justify-center gap-2 mx-auto bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="size-4" />
+                  Tambah Produk Pertama
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={handlePageChange}
-          totalItems={pagination.totalCount}
-          itemsPerPage={pagination.limit}
-        />
-      )}
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            totalItems={pagination.totalCount}
+            itemsPerPage={pagination.limit}
+          />
+        )}
+      </div>
 
       <AlertDialog
         isOpen={deleteDialogOpen}

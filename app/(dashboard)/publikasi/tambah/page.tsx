@@ -2,20 +2,31 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
 import { uploadApi } from "@/lib/api-client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import TiptapEditor from "@/components/ui/tiptap-editor";
 import { useCreatePublication } from "@/lib/hooks";
 import { toast } from "sonner";
+import PreviewModal from "@/components/ui/preview-modal";
+import PublicationPreview from "@/components/preview/publication-preview";
 
 export default function TambahPublikasiPage() {
   const router = useRouter();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const { create } = useCrudApi();
 
   const createPublication = useCreatePublication();
 
@@ -64,7 +75,10 @@ export default function TambahPublikasiPage() {
       if (uploadedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(uploadedFile);
+          const result = await uploadApi.uploadImage(
+            uploadedFile,
+            "main/publication"
+          );
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
@@ -242,7 +256,7 @@ export default function TambahPublikasiPage() {
                 : createPublication.isPending
                 ? "Menyimpan..."
                 : "Simpan Publikasi"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

@@ -65,7 +65,7 @@ export function FruitTypeCard({
   onView,
   onEdit,
   onDelete,
-  onReorder,
+  onReorder: _onReorder,
 }: FruitTypeCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 

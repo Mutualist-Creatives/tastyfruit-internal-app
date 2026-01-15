@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Edit, Trash, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Trash } from "lucide-react";
 import { toast } from "sonner";
-import { usersApi, User, PaginatedResponse } from "@/lib/api-client";
+import { usersApi, User } from "@/lib/api-client";
 import { useAuth } from "@/components/auth/auth-provider";
 import AlertDialog from "@/components/ui/alert-dialog";
-// import Pagination from "@/components/ui/pagination"; // Consider using if available, else standard
+import { UsersPageSkeleton } from "@/components/users-page-skeleton";
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -38,17 +38,17 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await usersApi.getAll(
-        pagination.page,
-        pagination.limit,
-        searchTerm
-      );
+      const response = await usersApi.getAll({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchTerm,
+      });
       if (response.success) {
         setUsers(response.data);
         setPagination({
           page: response.pagination.page,
           limit: response.pagination.limit,
-          total: response.pagination.total,
+          total: response.pagination.totalCount,
           totalPages: response.pagination.totalPages,
         });
       }
@@ -89,6 +89,10 @@ export default function UsersPage() {
 
   if (!currentUser || currentUser.role !== "admin") {
     return null; // Don't render anything while redirecting
+  }
+
+  if (loading) {
+    return <UsersPageSkeleton />;
   }
 
   return (
@@ -154,16 +158,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-2 text-sm text-slate-500">
-                      Memuat data...
-                    </p>
-                  </td>
-                </tr>
-              ) : users.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center">
                     <p className="text-slate-500">Belum ada data user</p>

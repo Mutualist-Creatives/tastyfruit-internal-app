@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   usePublications,
@@ -11,10 +11,11 @@ import {
 import { toast } from "sonner";
 import AlertDialog from "@/components/ui/alert-dialog";
 import Switch from "@/components/ui/switch";
+import { PublikasiPageSkeleton } from "@/components/publikasi-page-skeleton";
 
 export default function PublikasiPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, _setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -70,11 +71,7 @@ export default function PublikasiPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <PublikasiPageSkeleton />;
   }
 
   return (

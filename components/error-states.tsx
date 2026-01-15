@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, RefreshCw, Wifi } from "lucide-react";
 
 interface ErrorStateProps {
   title?: string;

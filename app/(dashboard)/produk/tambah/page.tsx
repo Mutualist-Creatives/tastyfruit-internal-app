@@ -18,18 +18,6 @@ export default function TambahProdukPage() {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  if (user && user.role !== "admin") {
-    // router.push("/produk"); // Or just hide it/redirect
-    console.warn("Non-admin user tried to access add product page");
-  }
-
-  // Ideally we should use useEffect or check in rendering,
-  // but for simplicity in this component let's just use effect or check rendering
-  if (user && user.role !== "admin") {
-    router.push("/produk");
-    return null;
-  }
-
   const {
     register,
     control,
@@ -52,6 +40,11 @@ export default function TambahProdukPage() {
     control,
     name: "variations",
   });
+
+  if (user && user.role !== "admin") {
+    router.push("/produk");
+    return null;
+  }
 
   const handleImageUpload = async (file: File) => {
     try {

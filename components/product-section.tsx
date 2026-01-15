@@ -91,7 +91,7 @@ export function ProductSection({
   onEdit,
   onDelete,
   onToggleStatus,
-  onReorder,
+  onReorder: _onReorder,
   children,
 }: ProductSectionProps) {
   // Setup drag and drop functionality using @dnd-kit

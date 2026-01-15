@@ -10,6 +10,7 @@ interface ProductPreviewProps {
     category: string;
     imageUrl?: string;
     isActive: boolean;
+    nutrition?: any;
   };
 }
 

@@ -9,6 +9,11 @@ import TiptapEditor from "@/components/ui/tiptap-editor";
 import { toast } from "sonner";
 import { useRecipe, useUpdateRecipe } from "@/lib/hooks";
 import { uploadApi } from "@/lib/api-client";
+import { FormPageSkeleton } from "@/components/form-page-skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Ingredient {
   name: string;
@@ -152,7 +157,10 @@ export default function EditResepPage() {
       if (selectedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(selectedFile);
+          const result = await uploadApi.uploadImage(
+            selectedFile,
+            "main/recipe"
+          );
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
@@ -198,9 +206,11 @@ export default function EditResepPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
+      <FormPageSkeleton
+        fieldCount={5}
+        hasImageUpload={true}
+        hasRichEditor={true}
+      />
     );
   }
 
@@ -230,7 +240,7 @@ export default function EditResepPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Judul Resep *
-              </Label>
+              </label>
               <Input
                 id="title"
                 name="title"
@@ -443,7 +453,7 @@ export default function EditResepPage() {
                 : updateRecipe.isPending
                 ? "Menyimpan..."
                 : "Update Resep"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

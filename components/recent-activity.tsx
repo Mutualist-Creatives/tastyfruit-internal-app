@@ -14,18 +14,21 @@ interface RecentActivityProps {
     newRecipes: number;
     newPublications: number;
   };
+  isAdmin?: boolean;
 }
 
 export default function RecentActivity({
   recentActivity,
+  isAdmin = false,
 }: RecentActivityProps) {
-  const activities = [
+  // Base activities for all users (Publications and Recipes)
+  const baseActivities = [
     {
-      title: "Produk Baru",
-      count: recentActivity?.newProducts || 0,
+      title: "Publikasi Baru",
+      count: recentActivity?.newPublications || 0,
       description: "Ditambahkan minggu ini",
-      icon: Package,
-      color: "bg-[#003CE9]/10 text-[#003CE9]",
+      icon: FileText,
+      color: "bg-purple-100 text-purple-600",
     },
     {
       title: "Resep Baru",
@@ -34,14 +37,21 @@ export default function RecentActivity({
       icon: CookingPot,
       color: "bg-[#B5FE28]/20 text-[#003CE9]",
     },
-    {
-      title: "Publikasi Baru",
-      count: recentActivity?.newPublications || 0,
-      description: "Ditambahkan minggu ini",
-      icon: FileText,
-      color: "bg-purple-100 text-purple-600",
-    },
   ];
+
+  // Additional activities for admin (Products)
+  const adminActivities = [
+    {
+      title: "Produk Baru",
+      count: recentActivity?.newProducts || 0,
+      description: "Ditambahkan minggu ini",
+      icon: Package,
+      color: "bg-[#003CE9]/10 text-[#003CE9]",
+    },
+    ...baseActivities,
+  ];
+
+  const activities = isAdmin ? adminActivities : baseActivities;
 
   return (
     <Card>

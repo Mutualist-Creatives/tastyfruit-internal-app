@@ -9,6 +9,17 @@ import TiptapEditor from "@/components/ui/tiptap-editor";
 import { toast } from "sonner";
 import { usePublication, useUpdatePublication } from "@/lib/hooks";
 import { uploadApi } from "@/lib/api-client";
+import { FormPageSkeleton } from "@/components/form-page-skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function EditPublikasiPage() {
   const router = useRouter();
@@ -88,7 +99,10 @@ export default function EditPublikasiPage() {
       if (selectedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(selectedFile);
+          const result = await uploadApi.uploadImage(
+            selectedFile,
+            "main/publication"
+          );
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
@@ -121,9 +135,11 @@ export default function EditPublikasiPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
+      <FormPageSkeleton
+        fieldCount={4}
+        hasImageUpload={true}
+        hasRichEditor={true}
+      />
     );
   }
 
@@ -285,7 +301,7 @@ export default function EditPublikasiPage() {
                 : updatePublication.isPending
                 ? "Menyimpan..."
                 : "Update Publikasi"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

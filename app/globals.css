@@ -49,17 +49,19 @@
 }
 
 body {
-  font-family: var(--font-nunito);
+  font-family: var(--font-nunito), "Nunito", system-ui, -apple-system,
+    sans-serif;
 }
 
 /* Font family utilities */
 .font-bricolage-grotesque-condensed {
   font-family: var(--font-bricolage-grotesque-condensed),
-    "Bricolage Grotesque Condensed", "Bricolage Grotesque", sans-serif;
+    "Bricolage Grotesque Condensed", "Bricolage Grotesque", system-ui,
+    sans-serif;
 }
 
 .font-bricolage-grotesque {
-  font-family: var(--font-bricolage-grotesque), "Bricolage Grotesque",
+  font-family: var(--font-bricolage-grotesque), "Bricolage Grotesque", system-ui,
     sans-serif;
 }
 

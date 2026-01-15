@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X, Eye } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/ui/file-upload";
 import { uploadApi } from "@/lib/api-client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import TiptapEditor from "@/components/ui/tiptap-editor";
+import PreviewModal from "@/components/ui/preview-modal";
+import RecipePreview from "@/components/preview/recipe-preview";
 import { useCreateRecipe } from "@/lib/hooks";
 import { toast } from "sonner";
 
@@ -26,7 +32,6 @@ export default function TambahResepPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const { create } = useCrudApi();
 
   const createRecipe = useCreateRecipe();
 
@@ -113,7 +118,10 @@ export default function TambahResepPage() {
       if (uploadedFile) {
         setUploadLoading(true);
         try {
-          const result = await uploadApi.uploadImage(uploadedFile);
+          const result = await uploadApi.uploadImage(
+            uploadedFile,
+            "main/recipe"
+          );
           imageUrl = result.data.url;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
@@ -175,7 +183,7 @@ export default function TambahResepPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Judul Resep *
-              </Label>
+              </label>
               <Input
                 id="title"
                 name="title"
@@ -387,7 +395,7 @@ export default function TambahResepPage() {
                 : createRecipe.isPending
                 ? "Menyimpan..."
                 : "Simpan Resep"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>
@@ -409,6 +417,7 @@ export default function TambahResepPage() {
               (inst) => inst.title && inst.description
             ),
             isPublished: false,
+            difficulty: "Medium",
           }}
         />
       </PreviewModal>

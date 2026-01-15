@@ -7,10 +7,11 @@ import { useRecipes, useDeleteRecipe, useUpdateRecipe } from "@/lib/hooks";
 import { toast } from "sonner";
 import AlertDialog from "@/components/ui/alert-dialog";
 import Switch from "@/components/ui/switch";
+import { ResepPageSkeleton } from "@/components/resep-page-skeleton";
 
 export default function ResepPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, _setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -66,11 +67,7 @@ export default function ResepPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <ResepPageSkeleton />;
   }
 
   return (

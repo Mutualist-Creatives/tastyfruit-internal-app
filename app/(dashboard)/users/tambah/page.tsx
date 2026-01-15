@@ -15,7 +15,7 @@ const createUserSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
   email: z.string().email("Email tidak valid"),
   password: z.string().min(6, "Password minimal 6 karakter"),
-  role: z.enum(["admin", "user", "editor"]).default("user"),
+  role: z.enum(["admin", "user", "editor"]),
 });
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
@@ -25,16 +25,9 @@ export default function AddUserPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Redirect if not admin
-  if (user && user.role !== "admin") {
-    router.push("/dashboard");
-    return null;
-  }
-
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
   } = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -42,6 +35,12 @@ export default function AddUserPage() {
       role: "user",
     },
   });
+
+  // Redirect if not admin
+  if (user && user.role !== "admin") {
+    router.push("/dashboard");
+    return null;
+  }
 
   const onSubmit = async (data: CreateUserFormData) => {
     try {
@@ -134,8 +133,8 @@ export default function AddUserPage() {
                 {...register("role")}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               >
-                <option value="user">User</option>
                 <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
               </select>
               {errors.role && (
                 <p className="mt-1 text-sm text-red-600">

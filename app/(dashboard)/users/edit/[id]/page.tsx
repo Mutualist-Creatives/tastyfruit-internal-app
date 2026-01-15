@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { usersApi } from "@/lib/api-client";
 import { useAuth } from "@/components/auth/auth-provider";
+import { FormPageSkeleton } from "@/components/form-page-skeleton";
 
 const updateUserSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
@@ -91,11 +92,7 @@ export default function EditUserPage() {
   };
 
   if (fetching) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <FormPageSkeleton fieldCount={4} />;
   }
 
   // Double check rendering
@@ -178,8 +175,8 @@ export default function EditUserPage() {
                 {...register("role")}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               >
-                <option value="user">User</option>
                 <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
               </select>
               {errors.role && (
                 <p className="mt-1 text-sm text-red-600">
